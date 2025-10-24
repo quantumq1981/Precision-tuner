@@ -328,82 +328,56 @@
   <script>
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-    const ToneFrequencies = {
-      C: 261.63,
-      'C#': 277.18,
-      Db: 277.18,
-      D: 293.66,
-      'D#': 311.13,
-      Eb: 311.13,
-      E: 329.63,
-      F: 349.23,
-      'F#': 369.99,
-      Gb: 369.99,
-      G: 392.0,
-      'G#': 415.3,
-      Ab: 415.3,
-      A: 440.0,
-      'A#': 466.16,
-      Bb: 466.16,
-      B: 493.88,
+    const NOTE_OFFSETS = {
+      C: 0,
+      D: 2,
+      E: 4,
+      F: 5,
+      G: 7,
+      A: 9,
+      B: 11,
     };
 
-    const enharmonicMap = {
-      Cb: 'B',
-      'C#': 'C#',
-      'C##': 'D',
-      Db: 'C#',
-      Dbb: 'C',
-      D: 'D',
-      'D#': 'D#',
-      D##: 'E',
-      Eb: 'D#',
-      Ebb: 'D',
-      E: 'E',
-      'E#': 'F',
-      E##: 'F#',
-      Fb: 'E',
-      F: 'F',
-      'F#': 'F#',
-      F##: 'G',
-      Gb: 'F#',
-      Gbb: 'F',
-      G: 'G',
-      'G#': 'G#',
-      G##: 'A',
-      Ab: 'G#',
-      Abb: 'G',
-      A: 'A',
-      'A#': 'A#',
-      A##: 'B',
-      Bb: 'A#',
-      Bbb: 'A',
-      B: 'B',
-      'B#': 'C',
-      B##: 'C#',
-    };
+    const SEMITONE_TO_NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-    const chromaticScale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const chromaticScale = [...SEMITONE_TO_NOTE];
 
     const stringNotes = ['E', 'B', 'G', 'D', 'A', 'E'];
     const fretCount = 15;
 
-    function normalizeNote(note) {
-      if (!note) return null;
-      const sanitized = note.replace('♭', 'b').replace('♯', '#');
-      return enharmonicMap[sanitized] || sanitized;
+    function sanitizeAccidentals(note) {
+      if (!note) return '';
+      return note.replace(/♭/g, 'b').replace(/♯/g, '#');
     }
 
-    function getDisplayName(note, originalNotes) {
-      const normalized = normalizeNote(note);
-      const match = originalNotes.find((n) => normalizeNote(n) === normalized);
-      return match || note;
+    function parseNote(note) {
+      if (!note) return null;
+      const sanitized = sanitizeAccidentals(note);
+      const match = sanitized.match(/^([A-Ga-g])([b#]*)$/);
+      if (!match) return null;
+
+      const letter = match[1].toUpperCase();
+      let semitone = NOTE_OFFSETS[letter];
+
+      for (const accidental of match[2]) {
+        semitone += accidental === '#' ? 1 : -1;
+      }
+
+      semitone = ((semitone % 12) + 12) % 12;
+      return { letter, semitone, sanitized };
+    }
+
+    function normalizeNote(note) {
+      const parsed = parseNote(note);
+      return parsed ? SEMITONE_TO_NOTE[parsed.semitone] : sanitizeAccidentals(note);
     }
 
     function noteFreq(note, octave = 4) {
-      const normalized = normalizeNote(note);
-      const base = ToneFrequencies[normalized];
-      return base ? base * Math.pow(2, octave - 4) : null;
+      const parsed = parseNote(note);
+      if (!parsed) return null;
+
+      const midi = (octave + 1) * 12 + parsed.semitone;
+      return 440 * Math.pow(2, (midi - 69) / 12);
     }
 
     function playScaleDescending(notes, tempo = 180) {
@@ -433,9 +407,9 @@
     }
 
     function getNoteAtFret(stringNote, fret) {
-      const startIdx = chromaticScale.indexOf(normalizeNote(stringNote));
-      const note = chromaticScale[(startIdx + fret) % 12];
-      return note;
+      const parsed = parseNote(stringNote);
+      if (!parsed) return null;
+      return chromaticScale[(parsed.semitone + fret) % 12];
     }
 
     function buildFretboard() {
@@ -473,7 +447,10 @@
           const note = getNoteAtFret(stringNote, fret);
           fretDiv.dataset.note = note;
           fretDiv.dataset.fret = fret;
-          fretDiv.textContent = fret === 0 ? stringNote : '';
+          if (fret === 0) {
+            fretDiv.dataset.openLabel = stringNote;
+            fretDiv.textContent = stringNote;
+          }
           stringDiv.appendChild(fretDiv);
         }
 
@@ -484,11 +461,7 @@
     function clearFretboard() {
       document.querySelectorAll('.fret').forEach((fret) => {
         fret.classList.remove('highlighted', 'root', 'sub', 'dom', 'alt');
-        if (fret.dataset.fret === '0') {
-          fret.textContent = fret.dataset.note;
-        } else {
-          fret.textContent = '';
-        }
+        fret.textContent = fret.dataset.fret === '0' ? fret.dataset.openLabel || fret.dataset.note : '';
       });
       document.querySelectorAll('.bar').forEach((bar) => bar.classList.remove('active'));
       document.getElementById('fretboard-title').textContent = 'Select a chord to see the scale on the fretboard';
@@ -498,13 +471,20 @@
       clearFretboard();
 
       const normalizedNotes = notes.map((n) => normalizeNote(n));
-      const normalizedRoot = normalizeNote(rootNote);
-      const rootIndex = chromaticScale.indexOf(normalizedRoot);
+      const rootData = parseNote(rootNote);
+      if (!rootData) return;
+      const displayNameMap = new Map();
+      notes.forEach((note) => {
+        const key = normalizeNote(note);
+        if (!displayNameMap.has(key)) {
+          displayNameMap.set(key, note);
+        }
+      });
 
       const intervalFromRoot = (note) => {
-        const noteIndex = chromaticScale.indexOf(normalizeNote(note));
-        if (noteIndex === -1 || rootIndex === -1) return null;
-        return (noteIndex - rootIndex + 12) % 12;
+        const parsed = parseNote(note);
+        if (!parsed) return null;
+        return (parsed.semitone - rootData.semitone + 12) % 12;
       };
 
       const intervalMap = {
@@ -535,6 +515,8 @@
         '♭III': 'other',
         VI: 'other',
         '♯V': 'other',
+        '♭V': 'dominant',
+        '♭VI': 'other',
       };
 
       const functionClassMap = {
@@ -551,20 +533,26 @@
         const interval = intervalFromRoot(fretNote);
         if (interval === null) return;
 
-        const degree = intervalMap[interval] || '?';
+        const displayNote = displayNameMap.get(fretNote) || fret.dataset.note || fretNote;
+        const sanitizedDisplay = sanitizeAccidentals(displayNote);
+
+        let degree = intervalMap[interval] || '?';
+        if (interval === 6) {
+          degree = sanitizedDisplay.includes('#') ? '♯IV' : '♭V';
+        } else if (interval === 8) {
+          degree = sanitizedDisplay.includes('b') ? '♭VI' : '♯V';
+        }
+
         const func = degreeFunctionColor[degree] || 'other';
         const funcClass = functionClassMap[func];
 
         fret.classList.add('highlighted');
-        if (funcClass && funcClass !== 'root') {
+        if (degree === 'I') {
+          fret.classList.add('root');
+        } else if (funcClass) {
           fret.classList.add(funcClass);
         }
 
-        if (fretNote === normalizedRoot) {
-          fret.classList.add('root');
-        }
-
-        const displayNote = getDisplayName(fret.dataset.note, notes);
         fret.textContent = `${displayNote}\n(${degree})`;
       });
 
@@ -650,7 +638,7 @@
 
       div.addEventListener('click', () => {
         const noteObjs = bar.notes.map((name) => ({
-          name: name.replace('♭', 'b').replace('♯', '#'),
+          name: sanitizeAccidentals(name),
           octave: 4,
         }));
         playScaleDescending(noteObjs);
@@ -688,7 +676,7 @@
         item.addEventListener('click', () => {
           showScaleOnFretboard(scale.name, scale.notes, scale.root);
           const noteObjs = scale.notes.map((name) => ({
-            name: name.replace('♭', 'b').replace('♯', '#'),
+            name: sanitizeAccidentals(name),
             octave: 4,
           }));
           playScaleDescending([...noteObjs, noteObjs[0]]);
