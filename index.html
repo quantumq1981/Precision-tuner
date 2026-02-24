@@ -370,7 +370,7 @@
         <!-- Header -->
         <div class="header">
             <h1>⚡ QUANTUM-PRECISION Z TUNER ⚡</h1>
-            <div class="version">v22.0 • RAILSBACK STRETCH • MULTI-TEMPERAMENT • ULTRA-PRECISION</div>
+            <div class="version">v22.1 • RAILSBACK STRETCH • STRETCHED TUNING CAL • MULTI-TEMPERAMENT • ULTRA-PRECISION</div>
         </div>
 
         <!-- System Status -->
@@ -429,7 +429,12 @@
                     <option value="acoustic">Acoustic Guitar</option>
                     <option value="classical">Classical Guitar</option>
                     <option value="bass">Bass Guitar (4-string)</option>
+                    <option value="guitar_stretched">Guitar — Stretched Tuning (Railsback)</option>
                 </select>
+                <div class="setting-hint" id="stretched-hint" style="display:none; color:#ffff00;">
+                    Stretched calibration: E2:-2.5¢ A2:-1.5¢ D3:-1.0¢ G3:0.0¢ B3:+1.0¢ E4:+1.5¢<br>
+                    Disable additional Railsback stretch below to avoid double-correction.
+                </div>
             </div>
             
             <!-- Tuning Preset -->
@@ -532,14 +537,16 @@
         };
 
         // Tuning Presets
+        // octaves[] = scientific pitch octave numbers (A4 = 440 Hz reference)
+        // Standard guitar: E2 A2 D3 G3 B3 E4 → octaves [2, 2, 3, 3, 3, 4]
         const tuningPresets = {
-            standard: { name: 'Standard', notes: ['E', 'A', 'D', 'G', 'B', 'E'], octaves: [6, 5, 4, 3, 2, 1] },
-            dropD: { name: 'Drop D', notes: ['D', 'A', 'D', 'G', 'B', 'E'], octaves: [6, 5, 4, 3, 2, 1] },
-            halfStepDown: { name: 'Half Step Down', notes: ['Eb', 'Ab', 'Db', 'Gb', 'Bb', 'Eb'], octaves: [6, 5, 4, 3, 2, 1] },
-            wholeStepDown: { name: 'Whole Step Down', notes: ['D', 'G', 'C', 'F', 'A', 'D'], octaves: [6, 5, 4, 3, 2, 1] },
-            dadgad: { name: 'DADGAD', notes: ['D', 'A', 'D', 'G', 'A', 'D'], octaves: [6, 5, 4, 3, 2, 1] },
-            openG: { name: 'Open G', notes: ['D', 'G', 'D', 'G', 'B', 'D'], octaves: [6, 5, 4, 3, 2, 1] },
-            openD: { name: 'Open D', notes: ['D', 'A', 'D', 'F#', 'A', 'D'], octaves: [6, 5, 4, 3, 2, 1] }
+            standard: { name: 'Standard', notes: ['E', 'A', 'D', 'G', 'B', 'E'], octaves: [2, 2, 3, 3, 3, 4] },
+            dropD: { name: 'Drop D', notes: ['D', 'A', 'D', 'G', 'B', 'E'], octaves: [2, 2, 3, 3, 3, 4] },
+            halfStepDown: { name: 'Half Step Down', notes: ['Eb', 'Ab', 'Db', 'Gb', 'Bb', 'Eb'], octaves: [2, 2, 3, 3, 3, 4] },
+            wholeStepDown: { name: 'Whole Step Down', notes: ['D', 'G', 'C', 'F', 'A', 'D'], octaves: [2, 2, 3, 3, 3, 4] },
+            dadgad: { name: 'DADGAD', notes: ['D', 'A', 'D', 'G', 'A', 'D'], octaves: [2, 2, 3, 3, 3, 4] },
+            openG: { name: 'Open G', notes: ['D', 'G', 'D', 'G', 'B', 'D'], octaves: [2, 2, 3, 3, 3, 4] },
+            openD: { name: 'Open D', notes: ['D', 'A', 'D', 'F#', 'A', 'D'], octaves: [2, 2, 3, 3, 3, 4] }
         };
 
         // Temperaments
@@ -567,11 +574,15 @@
         };
 
         // String Compensation
+        // Values in cents, index order: [E2, A2, D3, G3, B3, E4] (low→high)
         const stringCompensation = {
             electric: [0, 0, -1, -3, -1, 0],
             acoustic: [-2, 0, -1, -4, -2, 0],
             classical: [-3, 0, -2, -5, -2, 0],
-            bass: [-2, 0, -1, -2]
+            bass: [-2, 0, -1, -2],
+            // Guitar/Guitar Stretched Tuning calibration (Railsback-style per-string offsets)
+            // Source: Strobe tuner reference — E2:-2.5¢ A2:-1.5¢ D3:-1.0¢ G3:0.0¢ B3:+1.0¢ E4:+1.5¢
+            guitar_stretched: [-2.5, -1.5, -1.0, 0.0, 1.0, 1.5]
         };
 
         // Calculate stretched frequency
@@ -820,8 +831,16 @@
             document.getElementById('status-preset').textContent = tuningPresets[state.tuningPreset].name;
             document.getElementById('status-temperament').textContent = temperaments[state.temperament].name;
             document.getElementById('status-a4').textContent = state.a4Calibration;
-            document.getElementById('status-stretch').textContent = state.stretchTuning ? 
-                `ON (${((state.stretchFactor - 1) * 10000).toFixed(1)}¢/oct)` : 'OFF';
+            // Show stretched calibration status
+            let stretchStatus;
+            if (state.guitarType === 'guitar_stretched' && state.useCompensation) {
+                stretchStatus = 'STRETCHED CAL';
+            } else if (state.stretchTuning) {
+                stretchStatus = `ON (${((state.stretchFactor - 1) * 10000).toFixed(1)}¢/oct)`;
+            } else {
+                stretchStatus = 'OFF';
+            }
+            document.getElementById('status-stretch').textContent = stretchStatus;
             document.getElementById('status-comp').textContent = state.useCompensation ? 'ON' : 'OFF';
         }
 
@@ -846,8 +865,7 @@
                 };
                 
                 btn.innerHTML = `
-                    <div class="string-note">${note}</div>
-                    <div class="string-octave">${octave}</div>
+                    <div class="string-note">${note}<span style="font-size:0.65em;opacity:0.8">${octave}</span></div>
                     <div class="string-freq">${targetFreq.toFixed(2)} Hz</div>
                     <div class="string-comp">${compensation > 0 ? '+' : ''}${compensation}¢</div>
                 `;
@@ -1026,6 +1044,9 @@
 
         document.getElementById('guitar-type').addEventListener('change', (e) => {
             state.guitarType = e.target.value;
+            // Show calibration hint when stretched tuning preset is selected
+            document.getElementById('stretched-hint').style.display =
+                (state.guitarType === 'guitar_stretched') ? 'block' : 'none';
             updateStringSelector();
             updateTargetDisplay();
             updateSystemStatus();
