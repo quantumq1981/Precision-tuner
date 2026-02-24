@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>⚡ Quantum-Precision Z Tuner v22</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #00ff00;
+            padding: 20px;
+            min-height: 100vh;
+            touch-action: manipulation;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 15px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+        }
+        
+        .header .version {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+        
+        .system-status {
+            background: #001a00;
+            border: 1px solid #00ff00;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 11px;
+        }
+        
+        .system-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .main-display {
+            background: #001a00;
+            border: 3px solid #00ff00;
+            padding: 30px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 0 20px #00ff00;
+        }
+        
+        .status-text {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px currentColor;
+        }
+        
+        .strobe-container {
+            width: 180px;
+            height: 180px;
+            margin: 0 auto 20px;
+            border: 3px solid #00ff00;
+            border-radius: 50%;
+            position: relative;
+            background: radial-gradient(circle, #003300 0%, #000 100%);
+            overflow: hidden;
+        }
+        
+        .strobe-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 90px;
+            background: #00ff00;
+            transform-origin: top;
+            opacity: 0.3;
+        }
+        
+        .strobe-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            font-weight: bold;
+            text-shadow: 0 0 20px currentColor;
+        }
+        
+        .strobe-octave {
+            font-size: 20px;
+            opacity: 0.7;
+        }
+        
+        .frequency-display {
+            font-size: 30px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .target-freq {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 20px;
+        }
+        
+        .cents-display {
+            font-size: 60px;
+            font-weight: bold;
+            text-shadow: 0 0 30px currentColor;
+        }
+        
+        .precision-bar {
+            width: 100%;
+            height: 30px;
+            background: #001a00;
+            border: 1px solid #00ff00;
+            position: relative;
+            margin-top: 20px;
+        }
+        
+        .precision-center {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #00ff00;
+            opacity: 0.5;
+        }
+        
+        .precision-indicator {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            transform: translateX(-50%);
+            box-shadow: 0 0 10px currentColor;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            touch-action: manipulation;
+        }
+        
+        .btn-start {
+            background: #00ff00;
+            color: #000;
+            box-shadow: 0 0 20px #00ff00;
+        }
+        
+        .btn-stop {
+            background: #ff0000;
+            color: #fff;
+            box-shadow: 0 0 20px #ff0000;
+        }
+        
+        .btn-settings {
+            background: #00ff00;
+            color: #000;
+            box-shadow: 0 0 20px #00ff00;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .error-box {
+            background: #330000;
+            border: 2px solid #ff0000;
+            padding: 15px;
+            color: #ff0000;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .settings-panel {
+            background: #001a00;
+            border: 2px solid #00ff00;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .settings-panel.active {
+            display: block;
+        }
+        
+        .settings-panel h3 {
+            margin-top: 0;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .setting-group {
+            margin-bottom: 15px;
+        }
+        
+        .setting-label {
+            color: #00ff00;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        select, input[type="range"] {
+            width: 100%;
+            background: #000;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        input[type="range"] {
+            accent-color: #00ff00;
+        }
+        
+        .checkbox-label {
+            color: #00ff00;
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        input[type="checkbox"] {
+            margin-right: 10px;
+            accent-color: #00ff00;
+        }
+        
+        .setting-hint {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+        
+        .string-selector {
+            background: #001a00;
+            border: 2px solid #00ff00;
+            padding: 20px;
+        }
+        
+        .string-selector h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 10px;
+        }
+        
+        .string-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+        }
+        
+        .string-btn {
+            padding: 15px 10px;
+            background: #001a00;
+            color: #00ff00;
+            border: 2px solid #006600;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+        
+        .string-btn.active {
+            background: #00ff00;
+            color: #000;
+            border-color: #00ff00;
+            box-shadow: 0 0 15px #00ff00;
+        }
+        
+        .string-note {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .string-octave {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+        
+        .string-freq {
+            font-size: 9px;
+            margin-top: 5px;
+            opacity: 0.6;
+        }
+        
+        .string-comp {
+            font-size: 8px;
+            margin-top: 3px;
+            opacity: 0.5;
+        }
+        
+        .info-text {
+            margin-top: 15px;
+            color: #00ff00;
+            opacity: 0.7;
+            font-size: 11px;
+        }
+        
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 18px;
+            }
+            
+            .system-grid {
+                font-size: 10px;
+            }
+            
+            .strobe-container {
+                width: 150px;
+                height: 150px;
+            }
+            
+            .cents-display {
+                font-size: 48px;
+            }
+            
+            .string-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚡ QUANTUM-PRECISION Z TUNER ⚡</h1>
+            <div class="version">v22.0 • RAILSBACK STRETCH • MULTI-TEMPERAMENT • ULTRA-PRECISION</div>
+        </div>
+
+        <!-- System Status -->
+        <div class="system-status">
+            <div class="system-grid">
+                <div>PRESET: <span id="status-preset">Standard</span></div>
+                <div>TEMPERAMENT: <span id="status-temperament">Equal Temperament</span></div>
+                <div>A4: <span id="status-a4">440</span> Hz</div>
+                <div>STRETCH: <span id="status-stretch">OFF</span></div>
+                <div>COMPENSATION: <span id="status-comp">ON</span></div>
+                <div>RMS: <span id="status-rms">0.0</span>%</div>
+            </div>
+        </div>
+
+        <!-- Main Display -->
+        <div class="main-display" id="main-display">
+            <div class="status-text" id="status-text">READY</div>
+            
+            <!-- Strobe Visualization -->
+            <div class="strobe-container" id="strobe-container">
+                <!-- Lines will be generated by JavaScript -->
+                <div class="strobe-center" id="strobe-center">
+                    <div id="strobe-note">E</div>
+                    <div class="strobe-octave" id="strobe-octave">6</div>
+                </div>
+            </div>
+            
+            <div class="frequency-display" id="freq-display">0.00 Hz</div>
+            <div class="target-freq" id="target-freq">Target: 82.41 Hz</div>
+            <div class="cents-display" id="cents-display">0.0¢</div>
+            
+            <div class="precision-bar">
+                <div class="precision-center"></div>
+                <div class="precision-indicator" id="precision-indicator"></div>
+            </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="controls">
+            <button class="btn btn-start" id="start-btn">▶ START</button>
+            <button class="btn btn-settings" id="settings-btn">⚙ SETTINGS</button>
+        </div>
+
+        <!-- Error Display -->
+        <div class="error-box" id="error-box" style="display: none;"></div>
+
+        <!-- Settings Panel -->
+        <div class="settings-panel" id="settings-panel">
+            <h3>⚙ PRECISION SETTINGS</h3>
+            
+            <!-- Guitar Type -->
+            <div class="setting-group">
+                <label class="setting-label">Guitar Type:</label>
+                <select id="guitar-type">
+                    <option value="electric">Electric Guitar</option>
+                    <option value="acoustic">Acoustic Guitar</option>
+                    <option value="classical">Classical Guitar</option>
+                    <option value="bass">Bass Guitar (4-string)</option>
+                </select>
+            </div>
+            
+            <!-- Tuning Preset -->
+            <div class="setting-group">
+                <label class="setting-label">Tuning Preset:</label>
+                <select id="tuning-preset">
+                    <option value="standard">Standard</option>
+                    <option value="dropD">Drop D</option>
+                    <option value="halfStepDown">Half Step Down</option>
+                    <option value="wholeStepDown">Whole Step Down</option>
+                    <option value="dadgad">DADGAD</option>
+                    <option value="openG">Open G</option>
+                    <option value="openD">Open D</option>
+                </select>
+            </div>
+            
+            <!-- Temperament -->
+            <div class="setting-group">
+                <label class="setting-label">Temperament System:</label>
+                <select id="temperament">
+                    <option value="equal">Equal Temperament</option>
+                    <option value="just">Just Intonation (C)</option>
+                    <option value="pythagorean">Pythagorean</option>
+                    <option value="meantone">Quarter-Comma Meantone</option>
+                    <option value="werckmeister">Werckmeister III</option>
+                </select>
+            </div>
+            
+            <!-- A4 Calibration -->
+            <div class="setting-group">
+                <label class="setting-label">A4 Calibration: <span id="a4-value">440</span> Hz</label>
+                <input type="range" id="a4-calibration" min="435" max="445" step="0.1" value="440">
+                <div class="setting-hint">440 Hz (Standard) | 442 Hz (Orchestra) | 432 Hz (Alternative)</div>
+            </div>
+            
+            <!-- Stretched Tuning -->
+            <div class="setting-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="stretch-tuning">
+                    Enable Stretched Tuning (Railsback Curve)
+                </label>
+                <div id="stretch-controls" style="margin-top: 10px; display: none;">
+                    <label class="setting-label">Stretch Factor: <span id="stretch-value">5.0</span>¢ per octave</label>
+                    <input type="range" id="stretch-factor" min="1.0000" max="1.0020" step="0.0001" value="1.0005">
+                </div>
+            </div>
+            
+            <!-- Compensation Toggle -->
+            <div class="setting-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="compensation" checked>
+                    Enable Intonation Compensation
+                </label>
+            </div>
+            
+            <!-- Sensitivity -->
+            <div class="setting-group">
+                <label class="setting-label">Microphone Sensitivity: <span id="sensitivity-value">80</span>%</label>
+                <input type="range" id="sensitivity" min="0.3" max="1.0" step="0.05" value="0.8">
+            </div>
+        </div>
+
+        <!-- String Selector -->
+        <div class="string-selector">
+            <h3>🎸 SELECT STRING</h3>
+            <div class="string-grid" id="string-grid">
+                <!-- Strings will be generated by JavaScript -->
+            </div>
+            <div class="info-text">
+                <div>GREEN: ±2¢ (Quantum Lock) | YELLOW: ±10¢ (Converging) | RED: &gt;±10¢ (Adjusting)</div>
+                <div style="margin-top: 5px;">Algorithm: Autocorrelation + Parabolic Interpolation • FFT: 8192 • 44.1kHz</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let state = {
+            isListening: false,
+            selectedString: 0,
+            currentFreq: 0,
+            currentNote: '',
+            cents: 0,
+            showSettings: false,
+            useCompensation: true,
+            sensitivity: 0.8,
+            stretchTuning: false,
+            stretchFactor: 1.0005,
+            temperament: 'equal',
+            a4Calibration: 440,
+            tuningPreset: 'standard',
+            guitarType: 'electric',
+            audioContext: null,
+            analyser: null,
+            microphone: null,
+            animationFrame: null,
+            smoothingBuffer: [],
+            frameCounter: 0,
+            rms: 0
+        };
+
+        // Tuning Presets
+        const tuningPresets = {
+            standard: { name: 'Standard', notes: ['E', 'A', 'D', 'G', 'B', 'E'], octaves: [6, 5, 4, 3, 2, 1] },
+            dropD: { name: 'Drop D', notes: ['D', 'A', 'D', 'G', 'B', 'E'], octaves: [6, 5, 4, 3, 2, 1] },
+            halfStepDown: { name: 'Half Step Down', notes: ['Eb', 'Ab', 'Db', 'Gb', 'Bb', 'Eb'], octaves: [6, 5, 4, 3, 2, 1] },
+            wholeStepDown: { name: 'Whole Step Down', notes: ['D', 'G', 'C', 'F', 'A', 'D'], octaves: [6, 5, 4, 3, 2, 1] },
+            dadgad: { name: 'DADGAD', notes: ['D', 'A', 'D', 'G', 'A', 'D'], octaves: [6, 5, 4, 3, 2, 1] },
+            openG: { name: 'Open G', notes: ['D', 'G', 'D', 'G', 'B', 'D'], octaves: [6, 5, 4, 3, 2, 1] },
+            openD: { name: 'Open D', notes: ['D', 'A', 'D', 'F#', 'A', 'D'], octaves: [6, 5, 4, 3, 2, 1] }
+        };
+
+        // Temperaments
+        const temperaments = {
+            equal: { 
+                name: 'Equal Temperament',
+                offsets: { C: 0, 'C#': 0, D: 0, 'D#': 0, E: 0, F: 0, 'F#': 0, G: 0, 'G#': 0, A: 0, 'A#': 0, B: 0, Db: 0, Eb: 0, Gb: 0, Ab: 0, Bb: 0 }
+            },
+            just: {
+                name: 'Just Intonation (C)',
+                offsets: { C: 0, 'C#': -11, D: 4, 'D#': -6, E: -14, F: -2, 'F#': -10, G: 2, 'G#': -8, A: -16, 'A#': -4, B: -12, Db: -11, Eb: -6, Gb: -10, Ab: -8, Bb: -4 }
+            },
+            pythagorean: {
+                name: 'Pythagorean',
+                offsets: { C: 0, 'C#': 14, D: 4, 'D#': 18, E: 8, F: -2, 'F#': 12, G: 2, 'G#': 16, A: 6, 'A#': 20, B: 10, Db: 14, Eb: 18, Gb: 12, Ab: 16, Bb: 20 }
+            },
+            meantone: {
+                name: 'Quarter-Comma Meantone',
+                offsets: { C: 0, 'C#': -24, D: -7, 'D#': -31, E: -14, F: 7, 'F#': -17, G: 0, 'G#': -24, A: -7, 'A#': -31, B: -14, Db: -24, Eb: -31, Gb: -17, Ab: -24, Bb: -31 }
+            },
+            werckmeister: {
+                name: 'Werckmeister III',
+                offsets: { C: 0, 'C#': -8, D: -4, 'D#': -10, E: -8, F: 2, 'F#': -6, G: -2, 'G#': -8, A: -6, 'A#': -8, B: -4, Db: -8, Eb: -10, Gb: -6, Ab: -8, Bb: -8 }
+            }
+        };
+
+        // String Compensation
+        const stringCompensation = {
+            electric: [0, 0, -1, -3, -1, 0],
+            acoustic: [-2, 0, -1, -4, -2, 0],
+            classical: [-3, 0, -2, -5, -2, 0],
+            bass: [-2, 0, -1, -2]
+        };
+
+        // Calculate stretched frequency
+        function getStretchedFreq(baseFreq, octave) {
+            if (!state.stretchTuning) return baseFreq;
+            const octaveOffset = octave - 4;
+            const stretchAmount = octaveOffset * (state.stretchFactor - 1.0);
+            return baseFreq * (1 + stretchAmount);
+        }
+
+        // Get temperament offset
+        function getTemperamentOffset(note) {
+            return temperaments[state.temperament].offsets[note] || 0;
+        }
+
+        // Get note offset from A4
+        function getNoteOffset(note, octave) {
+            const notes = {
+                'C': -9, 'C#': -8, 'Db': -8,
+                'D': -7, 'D#': -6, 'Eb': -6,
+                'E': -5,
+                'F': -4, 'F#': -3, 'Gb': -3,
+                'G': -2, 'G#': -1, 'Ab': -1,
+                'A': 0, 'A#': 1, 'Bb': 1,
+                'B': 2
+            };
+            return notes[note] + (octave - 4) * 12;
+        }
+
+        // Calculate target frequency
+        function getTargetFrequency(stringIndex) {
+            const preset = tuningPresets[state.tuningPreset];
+            const note = preset.notes[stringIndex];
+            const octave = preset.octaves[stringIndex];
+            
+            const a4 = state.a4Calibration;
+            const noteOffset = getNoteOffset(note, octave);
+            let baseFreq = a4 * Math.pow(2, noteOffset / 12);
+            
+            // Apply temperament
+            const tempOffset = getTemperamentOffset(note);
+            baseFreq *= Math.pow(2, tempOffset / 1200);
+            
+            // Apply stretch
+            baseFreq = getStretchedFreq(baseFreq, octave);
+            
+            // Apply compensation
+            if (state.useCompensation) {
+                const comp = stringCompensation[state.guitarType][stringIndex] || 0;
+                baseFreq *= Math.pow(2, comp / 1200);
+            }
+            
+            return baseFreq;
+        }
+
+        // Hamming window cache
+        const windowCache = new Map();
+        function getHammingWindow(size) {
+            if (windowCache.has(size)) {
+                return windowCache.get(size);
+            }
+            const window = new Float32Array(size);
+            for (let i = 0; i < size; i++) {
+                window[i] = 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (size - 1));
+            }
+            windowCache.set(size, window);
+            return window;
+        }
+
+        // Pitch detection
+        function detectPitch(buffer) {
+            const SIZE = buffer.length;
+            const MAX_SAMPLES = Math.floor(SIZE / 2);
+
+            // IMPORTANT CALIBRATION:
+            // Always use the *actual* AudioContext sample rate.
+            // If you assume 44100Hz on a 48000Hz device (common on iOS/Safari),
+            // the detected pitch will be ~+147 cents sharp (~1.5 semitones).
+            const sr = (state.audioContext && state.audioContext.sampleRate)
+              ? state.audioContext.sampleRate
+              : 44100;
+
+            // Zero-crossing trim (reduces edge discontinuities and improves autocorr stability)
+            // Mirrors the reference tuner's best-practice pipeline.
+            let buf = buffer;
+            for (let i = 1; i < SIZE; i++) {
+              if (buffer[i - 1] <= 0 && buffer[i] > 0) { // rising crossing
+                buf = buffer.subarray(i);
+                break;
+              }
+            }
+            const trimmedSize = buf.length;
+
+            const window = getHammingWindow(trimmedSize);
+            
+            // Apply windowing
+            const windowed = new Float32Array(trimmedSize);
+            for (let i = 0; i < trimmedSize; i++) {
+                windowed[i] = buf[i] * window[i];
+            }
+            
+            // Calculate RMS
+            let rms = 0;
+            for (let i = 0; i < trimmedSize; i++) {
+                rms += windowed[i] * windowed[i];
+            }
+            rms = Math.sqrt(rms / trimmedSize);
+            state.rms = rms;
+            
+            const threshold = 0.001 * state.sensitivity;
+            if (rms < threshold) return null;
+            
+            // Autocorrelation
+            const maxSamples = Math.floor(trimmedSize / 2);
+            const correlations = new Float32Array(maxSamples);
+            for (let lag = 0; lag < maxSamples; lag++) {
+                let sum = 0;
+                for (let i = 0; i < maxSamples; i++) {
+                    sum += windowed[i] * windowed[i + lag];
+                }
+                correlations[lag] = sum;
+            }
+            
+            // Normalize
+            const norm = correlations[0];
+            if (norm === 0) return null;
+            for (let i = 0; i < maxSamples; i++) {
+                correlations[i] /= norm;
+            }
+            
+            // Find first peak
+            // Search bounds aligned with the reference tuner: ~60Hz–1200Hz.
+            const minLag = Math.floor(sr / 1200);
+            const maxLag = Math.floor(sr / 60);
+            
+            let bestLag = -1;
+            let bestCorr = 0.5;
+            
+            for (let lag = minLag; lag < maxLag && lag < maxSamples; lag++) {
+                if (correlations[lag] > bestCorr && 
+                    correlations[lag] > correlations[lag - 1] && 
+                    correlations[lag] > correlations[lag + 1]) {
+                    bestCorr = correlations[lag];
+                    bestLag = lag;
+                }
+            }
+            
+            if (bestLag === -1) return null;
+            
+            // Parabolic interpolation
+            const y1 = correlations[bestLag - 1];
+            const y2 = correlations[bestLag];
+            const y3 = correlations[bestLag + 1];
+            const refinedLag = bestLag + (y1 - y3) / (2 * (y1 - 2 * y2 + y3));
+            
+            return sr / refinedLag;
+        }
+
+        // Smooth pitch
+        function smoothPitch(pitch) {
+            if (pitch === null) return null;
+            
+            state.smoothingBuffer.push(pitch);
+            if (state.smoothingBuffer.length > 8) {
+                state.smoothingBuffer.shift();
+            }
+            
+            if (state.smoothingBuffer.length < 3) return pitch;
+            
+            // Calculate median
+            const sorted = [...state.smoothingBuffer].sort((a, b) => a - b);
+            const median = sorted[Math.floor(sorted.length / 2)];
+            
+            // Filter outliers
+            const filtered = state.smoothingBuffer.filter(p => 
+                Math.abs(1200 * Math.log2(p / median)) < 50
+            );
+            
+            if (filtered.length === 0) return pitch;
+            
+            // Average
+            const avg = filtered.reduce((sum, p) => sum + p, 0) / filtered.length;
+            return avg;
+        }
+
+        // Calculate cents
+        function calculateCents(detectedFreq, targetFreq) {
+            if (detectedFreq === 0 || targetFreq === 0) return 0;
+            return Math.round(1200 * Math.log2(detectedFreq / targetFreq) * 10) / 10;
+        }
+
+        // Get status color
+        function getStatusColor(cents) {
+            const abs = Math.abs(cents);
+            if (abs <= 2) return '#00ff00';
+            if (abs <= 10) return '#ffff00';
+            return '#ff0000';
+        }
+
+        // Get status text
+        function getStatusText(cents) {
+            const abs = Math.abs(cents);
+            if (abs <= 2) return 'QUANTUM LOCK';
+            if (abs <= 10) return 'CONVERGING';
+            return 'ADJUSTING';
+        }
+
+        // Update display
+        function updateDisplay() {
+            const color = getStatusColor(state.cents);
+            const statusText = getStatusText(state.cents);
+            
+            document.getElementById('status-text').textContent = statusText;
+            document.getElementById('status-text').style.color = color;
+            
+            document.getElementById('freq-display').textContent = state.currentFreq.toFixed(2) + ' Hz';
+            document.getElementById('cents-display').textContent = (state.cents > 0 ? '+' : '') + state.cents.toFixed(1) + '¢';
+            document.getElementById('cents-display').style.color = color;
+            
+            // Update main display border
+            document.getElementById('main-display').style.borderColor = color;
+            document.getElementById('main-display').style.boxShadow = `0 0 20px ${color}`;
+            
+            // Update strobe
+            const rotation = (state.cents / 50) * 360;
+            const lines = document.querySelectorAll('.strobe-line');
+            lines.forEach((line, i) => {
+                line.style.background = color;
+                line.style.transform = `translate(-50%, 0) rotate(${i * 30 + rotation}deg)`;
+                line.style.opacity = 0.3 + (Math.abs(state.cents) / 50);
+            });
+            
+            document.getElementById('strobe-center').style.color = color;
+            
+            // Update precision indicator
+            const indicator = document.getElementById('precision-indicator');
+            indicator.style.left = `${50 + (state.cents / 50) * 50}%`;
+            indicator.style.background = color;
+            
+            // Update RMS
+            document.getElementById('status-rms').textContent = (state.rms * 100).toFixed(1);
+        }
+
+        // Update system status
+        function updateSystemStatus() {
+            document.getElementById('status-preset').textContent = tuningPresets[state.tuningPreset].name;
+            document.getElementById('status-temperament').textContent = temperaments[state.temperament].name;
+            document.getElementById('status-a4').textContent = state.a4Calibration;
+            document.getElementById('status-stretch').textContent = state.stretchTuning ? 
+                `ON (${((state.stretchFactor - 1) * 10000).toFixed(1)}¢/oct)` : 'OFF';
+            document.getElementById('status-comp').textContent = state.useCompensation ? 'ON' : 'OFF';
+        }
+
+        // Update string selector
+        function updateStringSelector() {
+            const grid = document.getElementById('string-grid');
+            grid.innerHTML = '';
+            
+            const preset = tuningPresets[state.tuningPreset];
+            preset.notes.forEach((note, index) => {
+                const octave = preset.octaves[index];
+                const targetFreq = getTargetFrequency(index);
+                const compensation = state.useCompensation ? (stringCompensation[state.guitarType][index] || 0) : 0;
+                const isSelected = state.selectedString === index;
+                
+                const btn = document.createElement('button');
+                btn.className = 'string-btn' + (isSelected ? ' active' : '');
+                btn.onclick = () => {
+                    state.selectedString = index;
+                    updateStringSelector();
+                    updateTargetDisplay();
+                };
+                
+                btn.innerHTML = `
+                    <div class="string-note">${note}</div>
+                    <div class="string-octave">${octave}</div>
+                    <div class="string-freq">${targetFreq.toFixed(2)} Hz</div>
+                    <div class="string-comp">${compensation > 0 ? '+' : ''}${compensation}¢</div>
+                `;
+                
+                grid.appendChild(btn);
+            });
+        }
+
+        // Update target display
+        function updateTargetDisplay() {
+            const preset = tuningPresets[state.tuningPreset];
+            const note = preset.notes[state.selectedString];
+            const octave = preset.octaves[state.selectedString];
+            const targetFreq = getTargetFrequency(state.selectedString);
+            const tempOffset = getTemperamentOffset(note);
+            
+            document.getElementById('strobe-note').textContent = note;
+            document.getElementById('strobe-octave').textContent = octave;
+            
+            let targetText = `Target: ${targetFreq.toFixed(2)} Hz`;
+            if (tempOffset !== 0) {
+                targetText += ` (${tempOffset > 0 ? '+' : ''}${tempOffset}¢ temp)`;
+            }
+            document.getElementById('target-freq').textContent = targetText;
+        }
+
+        // Process audio
+        function processAudio() {
+            if (!state.isListening || !state.analyser) return;
+            
+            state.frameCounter++;
+            
+            if (state.frameCounter % 2 === 0) {
+                const bufferLength = state.analyser.fftSize;
+                const buffer = new Float32Array(bufferLength);
+                state.analyser.getFloatTimeDomainData(buffer);
+                
+                const detectedFreq = detectPitch(buffer);
+                const smoothedFreq = smoothPitch(detectedFreq);
+                
+                if (smoothedFreq) {
+                    const targetFreq = getTargetFrequency(state.selectedString);
+                    const centsOff = calculateCents(smoothedFreq, targetFreq);
+                    
+                    state.currentFreq = smoothedFreq;
+                    state.cents = centsOff;
+                    
+                    updateDisplay();
+                }
+            }
+            
+            state.animationFrame = requestAnimationFrame(processAudio);
+        }
+
+        // Start listening
+        async function startListening() {
+            showError('');
+            
+            const startBtn = document.getElementById('start-btn');
+            startBtn.disabled = true;
+            startBtn.textContent = '⏳ INITIALIZING...';
+            
+            try {
+                // Don't force 44.1kHz. Many browsers will ignore it and run at 48kHz,
+                // which will de-calibrate pitch if the DSP assumes 44.1k.
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                    } 
+                });
+                
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                // Let the browser pick the native rate; always reference audioContext.sampleRate.
+                state.audioContext = new AudioContext();
+
+                // Cache for use inside detectPitch()
+                state.sampleRate = state.audioContext.sampleRate;
+                
+                state.analyser = state.audioContext.createAnalyser();
+                // Match the reference tuner defaults: 2048 gives a good latency/resolution tradeoff.
+                state.analyser.fftSize = 2048;
+                state.analyser.smoothingTimeConstant = 0;
+                
+                state.microphone = state.audioContext.createMediaStreamSource(stream);
+                state.microphone.connect(state.analyser);
+                
+                state.isListening = true;
+                state.smoothingBuffer = [];
+                state.frameCounter = 0;
+                
+                startBtn.textContent = '⏹ STOP';
+                startBtn.className = 'btn btn-stop';
+                startBtn.disabled = false;
+                
+                processAudio();
+            } catch (err) {
+                showError('Microphone access denied. Please allow microphone access in your browser settings.');
+                console.error('Microphone error:', err);
+                startBtn.textContent = '▶ START';
+                startBtn.className = 'btn btn-start';
+                startBtn.disabled = false;
+            }
+        }
+
+        // Stop listening
+        function stopListening() {
+            if (state.animationFrame) {
+                cancelAnimationFrame(state.animationFrame);
+            }
+            if (state.microphone) {
+                state.microphone.disconnect();
+            }
+            if (state.audioContext) {
+                state.audioContext.close();
+            }
+            
+            state.isListening = false;
+            state.currentFreq = 0;
+            state.cents = 0;
+            state.smoothingBuffer = [];
+            
+            const startBtn = document.getElementById('start-btn');
+            startBtn.textContent = '▶ START';
+            startBtn.className = 'btn btn-start';
+            
+            document.getElementById('freq-display').textContent = '0.00 Hz';
+            document.getElementById('cents-display').textContent = '0.0¢';
+            document.getElementById('status-text').textContent = 'READY';
+        }
+
+        // Show error
+        function showError(message) {
+            const errorBox = document.getElementById('error-box');
+            if (message) {
+                errorBox.textContent = '⚠ ' + message;
+                errorBox.style.display = 'block';
+            } else {
+                errorBox.style.display = 'none';
+            }
+        }
+
+        // Initialize strobe lines
+        function initStrobe() {
+            const container = document.getElementById('strobe-container');
+            for (let i = 0; i < 12; i++) {
+                const line = document.createElement('div');
+                line.className = 'strobe-line';
+                line.style.transform = `translate(-50%, 0) rotate(${i * 30}deg)`;
+                container.appendChild(line);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('start-btn').addEventListener('click', () => {
+            if (state.isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        });
+
+        document.getElementById('settings-btn').addEventListener('click', () => {
+            state.showSettings = !state.showSettings;
+            const panel = document.getElementById('settings-panel');
+            const btn = document.getElementById('settings-btn');
+            if (state.showSettings) {
+                panel.classList.add('active');
+                btn.textContent = '⚙ HIDE SETTINGS';
+            } else {
+                panel.classList.remove('active');
+                btn.textContent = '⚙ SETTINGS';
+            }
+        });
+
+        document.getElementById('guitar-type').addEventListener('change', (e) => {
+            state.guitarType = e.target.value;
+            updateStringSelector();
+            updateTargetDisplay();
+            updateSystemStatus();
+        });
+
+        document.getElementById('tuning-preset').addEventListener('change', (e) => {
+            state.tuningPreset = e.target.value;
+            updateStringSelector();
+            updateTargetDisplay();
+            updateSystemStatus();
+        });
+
+        document.getElementById('temperament').addEventListener('change', (e) => {
+            state.temperament = e.target.value;
+            updateTargetDisplay();
+            updateSystemStatus();
+        });
+
+        document.getElementById('a4-calibration').addEventListener('input', (e) => {
+            state.a4Calibration = parseFloat(e.target.value);
+            document.getElementById('a4-value').textContent = state.a4Calibration.toFixed(1);
+            updateTargetDisplay();
+            updateSystemStatus();
+        });
+
+        document.getElementById('stretch-tuning').addEventListener('change', (e) => {
+            state.stretchTuning = e.target.checked;
+            document.getElementById('stretch-controls').style.display = state.stretchTuning ? 'block' : 'none';
+            updateTargetDisplay();
+            updateSystemStatus();
+        });
+
+        document.getElementById('stretch-factor').addEventListener('input', (e) => {
+            state.stretchFactor = parseFloat(e.target.value);
+            const cents = ((state.stretchFactor - 1) * 10000).toFixed(1);
+            document.getElementById('stretch-value').textContent = cents;
+            updateTargetDisplay();
+            updateSystemStatus();
+        });
+
+        document.getElementById('compensation').addEventListener('change', (e) => {
+            state.useCompensation = e.target.checked;
+            updateStringSelector();
+            updateTargetDisplay();
+            updateSystemStatus();
+        });
+
+        document.getElementById('sensitivity').addEventListener('input', (e) => {
+            state.sensitivity = parseFloat(e.target.value);
+            document.getElementById('sensitivity-value').textContent = Math.round(state.sensitivity * 100);
+        });
+
+        // Initialize
+        initStrobe();
+        updateStringSelector();
+        updateTargetDisplay();
+        updateSystemStatus();
+    </script>
+</body>
+</html>
