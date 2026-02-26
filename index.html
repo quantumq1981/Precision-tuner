@@ -197,7 +197,7 @@
         /* Controls */
         .controls {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
             gap: 10px;
             margin-bottom: 15px;
         }
@@ -237,6 +237,12 @@
             color: #00ffaa;
             border-color: #00ffaa;
             box-shadow: 0 0 15px #00ffaa66;
+        }
+
+        .btn-calibrate {
+            background: #002200;
+            color: #00ff00;
+            border: 2px solid #006600;
         }
 
         .btn-settings {
@@ -466,6 +472,152 @@
             line-height: 1.5;
         }
 
+        /* Calibration Panel */
+        .calibration-panel {
+            background: #001a00;
+            border: 2px solid #00ff00;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .calibration-panel.active {
+            display: block;
+        }
+
+        .calibration-panel h3 {
+            margin-top: 0;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .cal-section {
+            margin-bottom: 18px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #00ff0033;
+        }
+
+        .cal-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .cal-section h4 {
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #ffff00;
+        }
+
+        .cal-desc {
+            font-size: 10px;
+            opacity: 0.6;
+            margin-bottom: 10px;
+        }
+
+        .tone-btn-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .tone-btn {
+            padding: 10px 4px;
+            font-size: 11px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            background: #002200;
+            color: #00ff00;
+            border: 1px solid #006600;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .tone-btn.playing {
+            background: #00ff00;
+            color: #000;
+            border-color: #00ff00;
+            box-shadow: 0 0 10px #00ff0088;
+        }
+
+        .tone-controls {
+            font-size: 11px;
+        }
+
+        .tone-controls label {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        #tone-status {
+            font-size: 10px;
+            opacity: 0.7;
+            margin: 6px 0;
+        }
+
+        .tone-stop-btn {
+            padding: 8px 16px;
+            font-size: 11px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            background: #330000;
+            color: #ff4444;
+            border: 1px solid #ff4444;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        .cal-run-btn {
+            padding: 12px 20px;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            background: #002200;
+            color: #00ff00;
+            border: 2px solid #00ff00;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .cal-run-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .cal-results-table {
+            width: 100%;
+            font-size: 11px;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .cal-results-table th {
+            background: #002200;
+            padding: 6px 8px;
+            text-align: left;
+            border: 1px solid #00ff0044;
+        }
+
+        .cal-results-table td {
+            padding: 6px 8px;
+            border: 1px solid #00ff0022;
+        }
+
+        .cal-pass { color: #00ff00; font-weight: bold; }
+        .cal-fail { color: #ff4444; font-weight: bold; }
+        .cal-summary {
+            margin-top: 10px;
+            padding: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+        }
+
         /* Responsive */
         @media (max-width: 600px) {
             body { padding: 10px; }
@@ -478,7 +630,7 @@
             .frequency-display { font-size: 22px; }
             .string-grid { grid-template-columns: repeat(3, 1fr); }
             .controls { grid-template-columns: 1fr 1fr; }
-            .controls .btn:last-child { grid-column: 1 / -1; }
+            .tone-btn-grid { grid-template-columns: repeat(4, 1fr); }
         }
     </style>
 </head>
@@ -530,6 +682,7 @@
         <div class="controls">
             <button class="btn btn-start" id="start-btn">&#9654; START</button>
             <button class="btn btn-notelock" id="notelock-btn">NOTE-LOCK</button>
+            <button class="btn btn-calibrate" id="calibrate-btn">CALIBRATE</button>
             <button class="btn btn-settings" id="settings-btn">SETTINGS</button>
         </div>
 
@@ -619,6 +772,58 @@
             </div>
         </div>
 
+        <!-- Calibration Panel -->
+        <div class="calibration-panel" id="calibration-panel">
+            <h3>CALIBRATION</h3>
+
+            <!-- Reference Tone Generator -->
+            <div class="cal-section">
+                <h4>Reference Tone Generator</h4>
+                <p class="cal-desc">Play pure sine waves through your speakers. Use for external mic calibration or as a reference tone source.</p>
+                <div class="tone-btn-grid">
+                    <button class="tone-btn" data-freq="440.00" data-name="A4">A440</button>
+                    <button class="tone-btn" data-freq="82.41" data-name="E2">E2</button>
+                    <button class="tone-btn" data-freq="110.00" data-name="A2">A2</button>
+                    <button class="tone-btn" data-freq="146.83" data-name="D3">D3</button>
+                    <button class="tone-btn" data-freq="196.00" data-name="G3">G3</button>
+                    <button class="tone-btn" data-freq="246.94" data-name="B3">B3</button>
+                    <button class="tone-btn" data-freq="329.63" data-name="E4">E4</button>
+                </div>
+                <div class="tone-controls">
+                    <label>Volume: <span id="tone-vol-value">50</span>%</label>
+                    <input type="range" id="tone-volume" min="0" max="100" step="5" value="50">
+                    <div id="tone-status">No tone playing</div>
+                    <button class="tone-stop-btn" id="tone-stop">STOP TONE</button>
+                </div>
+            </div>
+
+            <!-- Internal Self-Test -->
+            <div class="cal-section">
+                <h4>Internal Self-Test (Digital Loopback)</h4>
+                <p class="cal-desc">Verifies pitch detection accuracy using digitally generated sine waves routed directly to the analyser. No microphone needed. Pass: &plusmn;1.0&cent;</p>
+                <button class="cal-run-btn" id="run-selftest">RUN BASELINE SELF-TEST</button>
+                <div id="selftest-progress" style="display:none">Testing... <span id="selftest-current"></span></div>
+                <table class="cal-results-table" id="selftest-results" style="display:none">
+                    <thead><tr><th>Note</th><th>Expected Hz</th><th>Detected Hz</th><th>Cents</th><th>Status</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="cal-summary" id="selftest-summary" style="display:none"></div>
+            </div>
+
+            <!-- Stretch Calibration -->
+            <div class="cal-section">
+                <h4>Stretch Calibration Verification</h4>
+                <p class="cal-desc">Verifies detection accuracy at the exact StroboPro-matched stretched frequencies (Railsback curve). Pass: &plusmn;1.0&cent;</p>
+                <button class="cal-run-btn" id="run-stretchtest">RUN STRETCH VERIFICATION</button>
+                <div id="stretchtest-progress" style="display:none">Testing... <span id="stretchtest-current"></span></div>
+                <table class="cal-results-table" id="stretchtest-results" style="display:none">
+                    <thead><tr><th>Note</th><th>Stretched Hz</th><th>Detected Hz</th><th>Cents</th><th>Status</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="cal-summary" id="stretchtest-summary" style="display:none"></div>
+            </div>
+        </div>
+
         <!-- String Selector -->
         <div class="string-selector">
             <div class="string-selector-header">
@@ -664,8 +869,14 @@
         sensitivity: 0.75,
         // Auto-detect
         autoDetect: true,
-        autoDetectHoldFrames: 0,   // Hysteresis counter
-        autoDetectCandidate: -1,   // Candidate string during hysteresis
+        autoDetectHoldFrames: 0,
+        autoDetectCandidate: -1,
+        // Calibration
+        showCalibration: false,
+        calOscillator: null,
+        calGainNode: null,
+        calAudioContext: null,
+        calToneVolume: 0.5,
         // Strobe
         strobePhase: 0,
         harmonicMagnitudes: new Array(8).fill(0)
@@ -1499,6 +1710,224 @@
     }
 
     // ================================================================
+    // TONE GENERATOR
+    // ================================================================
+
+    function playTone(freq) {
+        stopTone(); // Stop any existing tone
+
+        const AC = window.AudioContext || window.webkitAudioContext;
+        state.calAudioContext = new AC();
+
+        state.calGainNode = state.calAudioContext.createGain();
+        state.calGainNode.gain.value = state.calToneVolume;
+        state.calGainNode.connect(state.calAudioContext.destination);
+
+        state.calOscillator = state.calAudioContext.createOscillator();
+        state.calOscillator.type = 'sine';
+        state.calOscillator.frequency.value = freq;
+        state.calOscillator.connect(state.calGainNode);
+        state.calOscillator.start();
+
+        document.getElementById('tone-status').textContent =
+            `Playing: ${freq.toFixed(2)} Hz (pure sine wave)`;
+
+        // Highlight active tone button
+        document.querySelectorAll('.tone-btn').forEach(btn => {
+            btn.classList.toggle('playing',
+                parseFloat(btn.dataset.freq) === freq);
+        });
+    }
+
+    function stopTone() {
+        if (state.calOscillator) {
+            state.calOscillator.stop();
+            state.calOscillator.disconnect();
+            state.calOscillator = null;
+        }
+        if (state.calGainNode) {
+            state.calGainNode.disconnect();
+            state.calGainNode = null;
+        }
+        if (state.calAudioContext) {
+            state.calAudioContext.close();
+            state.calAudioContext = null;
+        }
+        document.getElementById('tone-status').textContent = 'No tone playing';
+        document.querySelectorAll('.tone-btn').forEach(btn =>
+            btn.classList.remove('playing'));
+    }
+
+    // ================================================================
+    // CALIBRATION SELF-TEST (DIGITAL LOOPBACK)
+    // ================================================================
+
+    async function runCalibrationTest(testFreqs, progressId, resultsTableId, summaryId) {
+        const progressEl = document.getElementById(progressId);
+        const currentEl = progressEl.querySelector('span');
+        const tableEl = document.getElementById(resultsTableId);
+        const summaryEl = document.getElementById(summaryId);
+        const tbody = tableEl.querySelector('tbody');
+
+        // Disable all run buttons during test
+        document.querySelectorAll('.cal-run-btn').forEach(b => b.disabled = true);
+        progressEl.style.display = 'block';
+        tableEl.style.display = 'none';
+        summaryEl.style.display = 'none';
+        tbody.innerHTML = '';
+
+        const AC = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AC();
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 4096;
+        analyser.smoothingTimeConstant = 0;
+
+        // Silent output: oscillator -> analyser -> silent gain -> destination
+        // (Audio graph must reach destination for processing to occur)
+        const silentGain = ctx.createGain();
+        silentGain.gain.value = 0;
+        analyser.connect(silentGain);
+        silentGain.connect(ctx.destination);
+
+        const results = [];
+
+        for (const test of testFreqs) {
+            currentEl.textContent = `${test.name} (${test.freq.toFixed(2)} Hz)`;
+
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = test.freq;
+
+            // Use a gain to set amplitude (0.5 = comfortable RMS)
+            const gain = ctx.createGain();
+            gain.gain.value = 0.5;
+            osc.connect(gain);
+            gain.connect(analyser);
+            osc.start();
+
+            // Wait for analyser buffer to fill with stable signal
+            // At 48kHz, 4096 samples = ~85ms. Wait 300ms for multiple fills.
+            await new Promise(r => setTimeout(r, 300));
+
+            // Read time-domain data and run pitch detection
+            const buffer = new Float32Array(analyser.fftSize);
+            analyser.getFloatTimeDomainData(buffer);
+
+            // Temporarily point detectPitch at our test context
+            const origCtx = state.audioContext;
+            state.audioContext = ctx;
+            const detected = detectPitch(buffer);
+            state.audioContext = origCtx;
+
+            osc.stop();
+            osc.disconnect();
+            gain.disconnect();
+
+            const cents = detected ? calculateCents(detected, test.freq) : null;
+            const absCents = cents !== null ? Math.abs(cents) : 999;
+            const pass = absCents < 1.0;
+
+            results.push({
+                name: test.name,
+                expected: test.freq,
+                detected: detected || 0,
+                cents: cents !== null ? cents : null,
+                pass: pass
+            });
+        }
+
+        ctx.close();
+
+        // Display results
+        tableEl.style.display = 'table';
+        for (const r of results) {
+            const tr = document.createElement('tr');
+            const centsStr = r.cents !== null
+                ? `${r.cents > 0 ? '+' : ''}${r.cents.toFixed(2)}`
+                : 'N/A';
+            const statusClass = r.pass ? 'cal-pass' : 'cal-fail';
+            const statusText = r.pass ? 'PASS' : 'FAIL';
+
+            tr.innerHTML = `
+                <td>${r.name}</td>
+                <td>${r.expected.toFixed(2)}</td>
+                <td>${r.detected > 0 ? r.detected.toFixed(2) : '---'}</td>
+                <td class="${statusClass}">${centsStr}</td>
+                <td class="${statusClass}">${statusText}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        // Summary
+        const passed = results.filter(r => r.pass).length;
+        const total = results.length;
+        const allPass = passed === total;
+        summaryEl.style.display = 'block';
+        summaryEl.className = 'cal-summary ' + (allPass ? 'cal-pass' : 'cal-fail');
+        summaryEl.textContent = allPass
+            ? `ALL ${total} TESTS PASSED - Pitch detection verified within +/-1.0 cent`
+            : `${passed}/${total} PASSED - ${total - passed} test(s) exceeded +/-1.0 cent tolerance`;
+
+        progressEl.style.display = 'none';
+        document.querySelectorAll('.cal-run-btn').forEach(b => b.disabled = false);
+
+        return results;
+    }
+
+    function runBaselineSelfTest() {
+        // Test A440 + all 6 standard guitar strings at pure ET frequencies
+        const a4 = state.a4Calibration;
+        const preset = tuningPresets[state.tuningPreset];
+
+        const tests = [
+            { name: 'A4 (Reference)', freq: a4 }
+        ];
+
+        for (let i = 0; i < preset.notes.length; i++) {
+            const note = preset.notes[i];
+            const octave = preset.octaves[i];
+            const semitones = getNoteOffset(note, octave);
+            const etFreq = a4 * Math.pow(2, semitones / 12);
+            tests.push({ name: `${note}${octave}`, freq: etFreq });
+        }
+
+        return runCalibrationTest(
+            tests,
+            'selftest-progress',
+            'selftest-results',
+            'selftest-summary'
+        );
+    }
+
+    function runStretchVerification() {
+        // Test at the exact StroboPro-matched stretched frequencies
+        const a4 = state.a4Calibration;
+        const preset = tuningPresets[state.tuningPreset];
+        const stretchOffsets = stretchProfiles['standard'].offsets;
+
+        const tests = [];
+        for (let i = 0; i < preset.notes.length; i++) {
+            const note = preset.notes[i];
+            const octave = preset.octaves[i];
+            const semitones = getNoteOffset(note, octave);
+            const etFreq = a4 * Math.pow(2, semitones / 12);
+            const stretchedFreq = etFreq * Math.pow(2, stretchOffsets[i] / 1200);
+            const sign = stretchOffsets[i] > 0 ? '+' : '';
+            tests.push({
+                name: `${note}${octave} (${sign}${stretchOffsets[i].toFixed(1)}\u00A2)`,
+                freq: stretchedFreq
+            });
+        }
+
+        return runCalibrationTest(
+            tests,
+            'stretchtest-progress',
+            'stretchtest-results',
+            'stretchtest-summary'
+        );
+    }
+
+    // ================================================================
     // EVENT LISTENERS
     // ================================================================
 
@@ -1526,6 +1955,51 @@
             if (state.isListening) disengageNoteLock();
         }
         updateSystemStatus();
+    });
+
+    // Calibration toggle
+    document.getElementById('calibrate-btn').addEventListener('click', () => {
+        state.showCalibration = !state.showCalibration;
+        const panel = document.getElementById('calibration-panel');
+        const btn = document.getElementById('calibrate-btn');
+        if (state.showCalibration) {
+            panel.classList.add('active');
+            btn.textContent = 'HIDE CAL';
+        } else {
+            panel.classList.remove('active');
+            btn.textContent = 'CALIBRATE';
+            stopTone(); // Stop any playing tone when closing panel
+        }
+    });
+
+    // Tone generator buttons
+    document.querySelectorAll('.tone-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const freq = parseFloat(btn.dataset.freq);
+            playTone(freq);
+        });
+    });
+
+    // Tone stop
+    document.getElementById('tone-stop').addEventListener('click', stopTone);
+
+    // Tone volume
+    document.getElementById('tone-volume').addEventListener('input', (e) => {
+        state.calToneVolume = parseInt(e.target.value) / 100;
+        document.getElementById('tone-vol-value').textContent = e.target.value;
+        if (state.calGainNode) {
+            state.calGainNode.gain.value = state.calToneVolume;
+        }
+    });
+
+    // Self-test
+    document.getElementById('run-selftest').addEventListener('click', () => {
+        runBaselineSelfTest();
+    });
+
+    // Stretch verification
+    document.getElementById('run-stretchtest').addEventListener('click', () => {
+        runStretchVerification();
     });
 
     // Settings toggle
