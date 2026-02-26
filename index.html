@@ -362,12 +362,49 @@
             padding: 15px;
         }
 
-        .string-selector h3 {
-            margin-top: 0;
+        .string-selector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 12px;
             border-bottom: 1px solid #00ff00;
             padding-bottom: 8px;
+        }
+
+        .string-selector-header h3 {
+            margin: 0;
             font-size: 14px;
+        }
+
+        .btn-auto {
+            padding: 6px 14px;
+            font-size: 11px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            border: 2px solid #006600;
+            background: #002200;
+            color: #00ff00;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-auto.active {
+            background: #00aaff;
+            color: #000;
+            border-color: #00aaff;
+            box-shadow: 0 0 12px #00aaff66;
+        }
+
+        .string-btn.auto-matched {
+            border-color: #00aaff;
+            box-shadow: 0 0 10px #00aaff44;
+        }
+
+        .string-btn.active.auto-matched {
+            background: #00aaff;
+            border-color: #00aaff;
+            box-shadow: 0 0 12px #00aaff88;
         }
 
         .string-grid {
@@ -459,7 +496,7 @@
                 <div class="status-item">TUNING: <span id="status-tuning">Standard</span></div>
                 <div class="status-item">STRETCH: <span id="status-stretch" class="status-highlight">OFF</span></div>
                 <div class="status-item">A4: <span id="status-a4">440.0</span> Hz</div>
-                <div class="status-item">LOCK: <span id="status-notelock">OFF</span></div>
+                <div class="status-item">DETECT: <span id="status-detect" class="status-highlight">AUTO</span></div>
                 <div class="status-item">COMP: <span id="status-comp">ON</span></div>
                 <div class="status-item">RMS: <span id="status-rms">0.0</span>%</div>
             </div>
@@ -584,7 +621,10 @@
 
         <!-- String Selector -->
         <div class="string-selector">
-            <h3>SELECT STRING</h3>
+            <div class="string-selector-header">
+                <h3>SELECT STRING</h3>
+                <button class="btn-auto active" id="auto-btn">AUTO</button>
+            </div>
             <div class="string-grid" id="string-grid"></div>
             <div class="info-text">
                 <div>GREEN: &plusmn;2&cent; (Locked) &bull; YELLOW: &plusmn;10&cent; (Converging) &bull; RED: &gt;&plusmn;10&cent; (Adjusting)</div>
@@ -622,6 +662,10 @@
         useCompensation: true,
         noteLockEnabled: false,
         sensitivity: 0.75,
+        // Auto-detect
+        autoDetect: true,
+        autoDetectHoldFrames: 0,   // Hysteresis counter
+        autoDetectCandidate: -1,   // Candidate string during hysteresis
         // Strobe
         strobePhase: 0,
         harmonicMagnitudes: new Array(8).fill(0)
@@ -1144,7 +1188,20 @@
         stretchEl.className = state.stretchProfile !== 'off' ? 'status-highlight' : '';
 
         document.getElementById('status-a4').textContent = state.a4Calibration.toFixed(1);
-        document.getElementById('status-notelock').textContent = state.noteLockEnabled ? 'ON' : 'OFF';
+
+        const detectEl = document.getElementById('status-detect');
+        if (state.autoDetect) {
+            detectEl.textContent = 'AUTO';
+            detectEl.className = 'status-highlight';
+        } else if (state.noteLockEnabled) {
+            detectEl.textContent = 'LOCKED';
+            detectEl.className = 'status-highlight';
+            detectEl.style.color = '#00ffaa';
+        } else {
+            detectEl.textContent = 'MANUAL';
+            detectEl.className = '';
+        }
+
         document.getElementById('status-comp').textContent = state.useCompensation ? 'ON' : 'OFF';
     }
 
@@ -1207,6 +1264,13 @@
             btn.className = 'string-btn' + (isSelected ? ' active' : '');
             btn.onclick = () => {
                 state.selectedString = i;
+                // Manual string selection disables auto-detect
+                if (state.autoDetect) {
+                    state.autoDetect = false;
+                    document.getElementById('auto-btn').classList.remove('active');
+                    document.getElementById('auto-btn').textContent = 'MANUAL';
+                    updateSystemStatus();
+                }
                 updateStringSelector();
                 updateTargetDisplay();
                 updateNoteLockFrequency();
@@ -1223,6 +1287,65 @@
 
             btn.innerHTML = html;
             grid.appendChild(btn);
+        }
+    }
+
+    // ================================================================
+    // AUTO-DETECT
+    // ================================================================
+
+    const AUTO_HYSTERESIS = 3; // Frames a candidate must hold before switching
+
+    function findNearestString(detectedFreq) {
+        const preset = tuningPresets[state.tuningPreset];
+        let bestIndex = 0;
+        let bestAbsCents = Infinity;
+
+        for (let i = 0; i < preset.notes.length; i++) {
+            const target = getTargetFrequency(i);
+            const cents = Math.abs(calculateCents(detectedFreq, target));
+            if (cents < bestAbsCents) {
+                bestAbsCents = cents;
+                bestIndex = i;
+            }
+        }
+
+        // Only match if within 50 cents (half a semitone)
+        return bestAbsCents <= 50 ? bestIndex : -1;
+    }
+
+    function runAutoDetect(detectedFreq) {
+        if (!state.autoDetect) return;
+
+        const nearest = findNearestString(detectedFreq);
+        if (nearest === -1) {
+            state.autoDetectHoldFrames = 0;
+            state.autoDetectCandidate = -1;
+            return;
+        }
+
+        if (nearest === state.selectedString) {
+            // Already on the right string - reset hysteresis
+            state.autoDetectHoldFrames = 0;
+            state.autoDetectCandidate = -1;
+            return;
+        }
+
+        // Hysteresis: candidate must hold for several frames before switching
+        if (nearest === state.autoDetectCandidate) {
+            state.autoDetectHoldFrames++;
+            if (state.autoDetectHoldFrames >= AUTO_HYSTERESIS) {
+                state.selectedString = nearest;
+                state.smoothingBuffer = []; // Reset smoothing on string change
+                state.autoDetectHoldFrames = 0;
+                state.autoDetectCandidate = -1;
+                updateStringSelector();
+                updateTargetDisplay();
+                updateNoteLockFrequency();
+            }
+        } else {
+            state.autoDetectCandidate = nearest;
+            state.autoDetectHoldFrames = 1;
         }
     }
 
@@ -1245,6 +1368,9 @@
             const smoothed = smoothPitch(rawPitch);
 
             if (smoothed) {
+                // Auto-detect nearest string before calculating cents
+                runAutoDetect(smoothed);
+
                 const targetFreq = getTargetFrequency(state.selectedString);
                 const centsOff = calculateCents(smoothed, targetFreq);
 
@@ -1471,6 +1597,23 @@
         updateTargetDisplay();
         updateSystemStatus();
         updateNoteLockFrequency();
+    });
+
+    // Auto-detect toggle
+    document.getElementById('auto-btn').addEventListener('click', () => {
+        state.autoDetect = !state.autoDetect;
+        state.autoDetectHoldFrames = 0;
+        state.autoDetectCandidate = -1;
+
+        const btn = document.getElementById('auto-btn');
+        if (state.autoDetect) {
+            btn.classList.add('active');
+            btn.textContent = 'AUTO';
+        } else {
+            btn.classList.remove('active');
+            btn.textContent = 'MANUAL';
+        }
+        updateSystemStatus();
     });
 
     // Sensitivity
