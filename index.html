@@ -197,7 +197,7 @@
         /* Controls */
         .controls {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: repeat(4, 1fr);
             gap: 10px;
             margin-bottom: 15px;
         }
@@ -243,6 +243,19 @@
             background: #002200;
             color: #00ff00;
             border: 2px solid #006600;
+        }
+
+        .btn-calibrate {
+            background: #001a33;
+            color: #00aaff;
+            border: 2px solid #003366;
+        }
+
+        .btn-calibrate.active {
+            background: #003366;
+            color: #00ddff;
+            border-color: #00aaff;
+            box-shadow: 0 0 15px #00aaff66;
         }
 
         .btn:disabled {
@@ -466,6 +479,207 @@
             line-height: 1.5;
         }
 
+        /* ================================================================
+           CALIBRATION PANEL
+           ================================================================ */
+
+        .calibration-panel {
+            background: #000d1a;
+            border: 2px solid #00aaff;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .calibration-panel.active {
+            display: block;
+        }
+
+        .calibration-panel h3 {
+            color: #00aaff;
+            margin-top: 0;
+            border-bottom: 1px solid #00aaff;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .cal-section {
+            background: #00080f;
+            border: 1px solid #00aaff33;
+            padding: 12px;
+            margin-bottom: 14px;
+        }
+
+        .cal-section-title {
+            color: #00aaff;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .tone-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .tone-btn {
+            padding: 10px 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            font-weight: bold;
+            background: #001a33;
+            color: #00aaff;
+            border: 2px solid #003366;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+
+        .tone-btn.ref-a4 {
+            background: #1a1500;
+            color: #ffff00;
+            border-color: #666600;
+        }
+
+        .tone-btn:hover { opacity: 0.85; }
+
+        .tone-btn.active {
+            background: #00aaff;
+            color: #000;
+            border-color: #00ddff;
+            box-shadow: 0 0 10px #00aaff88;
+        }
+
+        .tone-btn.ref-a4.active {
+            background: #ffff00;
+            color: #000;
+            border-color: #ffff00;
+            box-shadow: 0 0 10px #ffff0088;
+        }
+
+        .cal-status-display {
+            background: #000810;
+            border: 1px solid #00aaff44;
+            padding: 10px 12px;
+            font-size: 11px;
+            line-height: 1.9;
+            margin-bottom: 8px;
+            min-height: 72px;
+        }
+
+        .cal-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cal-metric-label { opacity: 0.65; font-size: 10px; }
+        .cal-metric-value { font-weight: bold; }
+        .cal-good  { color: #00ff00; }
+        .cal-warn  { color: #ffff00; }
+        .cal-bad   { color: #ff4400; }
+        .cal-blue  { color: #00aaff; }
+
+        .cal-btn {
+            width: 100%;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 6px;
+        }
+
+        .cal-btn-auto {
+            background: #003344;
+            color: #00aaff;
+            border: 2px solid #00aaff;
+        }
+
+        .cal-btn-auto:hover:not(:disabled) { background: #004455; }
+
+        .cal-btn-auto:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .cal-btn-sweep {
+            background: #1a1500;
+            color: #ffff00;
+            border: 2px solid #666600;
+        }
+
+        .cal-btn-sweep:hover:not(:disabled) { background: #252000; }
+        .cal-btn-sweep:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .cal-btn-stop {
+            background: #1a0000;
+            color: #ff4400;
+            border: 2px solid #660000;
+        }
+
+        .cal-btn-stop:hover { background: #220000; }
+
+        .cal-message {
+            padding: 6px 10px;
+            font-size: 10px;
+            border: 1px solid currentColor;
+            margin-top: 4px;
+            background: #001a00;
+        }
+
+        .cal-volume-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 10px;
+        }
+
+        .cal-volume-row label { white-space: nowrap; min-width: 90px; }
+
+        .stretch-cal-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            font-size: 9px;
+            margin-top: 8px;
+        }
+
+        .stretch-cal-item {
+            border: 1px solid #00aaff22;
+            padding: 7px 5px;
+            text-align: center;
+            background: #00050a;
+        }
+
+        .stretch-cal-item .sci-note   { font-size: 15px; font-weight: bold; color: #00aaff; }
+        .stretch-cal-item .sci-target { color: #888; margin-top: 2px; }
+        .stretch-cal-item .sci-det    { margin-top: 2px; font-weight: bold; }
+        .stretch-cal-item .sci-dev    { margin-top: 1px; font-weight: bold; }
+
+        .cal-info-box {
+            background: #001400;
+            border: 1px solid #00aa0044;
+            padding: 8px 10px;
+            font-size: 9px;
+            line-height: 1.6;
+            color: #aaffaa;
+            margin-top: 8px;
+        }
+
+        @media (max-width: 600px) {
+            .tone-grid { grid-template-columns: repeat(4, 1fr); }
+            .stretch-cal-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
         /* Responsive */
         @media (max-width: 600px) {
             body { padding: 10px; }
@@ -478,7 +692,6 @@
             .frequency-display { font-size: 22px; }
             .string-grid { grid-template-columns: repeat(3, 1fr); }
             .controls { grid-template-columns: 1fr 1fr; }
-            .controls .btn:last-child { grid-column: 1 / -1; }
         }
     </style>
 </head>
@@ -531,6 +744,7 @@
             <button class="btn btn-start" id="start-btn">&#9654; START</button>
             <button class="btn btn-notelock" id="notelock-btn">NOTE-LOCK</button>
             <button class="btn btn-settings" id="settings-btn">SETTINGS</button>
+            <button class="btn btn-calibrate" id="cal-btn">CALIBRATE</button>
         </div>
 
         <!-- Error Display -->
@@ -616,6 +830,122 @@
                 <label class="setting-label">Detection Sensitivity: <span id="sensitivity-value">75</span>%</label>
                 <input type="range" id="sensitivity" min="0.2" max="1.0" step="0.05" value="0.75">
                 <div class="setting-hint">Lower = ignores more background noise. Higher = more responsive in quiet environments.</div>
+            </div>
+        </div>
+
+        <!-- Calibration Panel -->
+        <div class="calibration-panel" id="calibration-panel">
+            <h3>&#9112; CALIBRATION LAB &mdash; Reference Tone Generator &amp; Verification</h3>
+
+            <!-- Section 1: Reference Tone Generator -->
+            <div class="cal-section">
+                <div class="cal-section-title">&#9654; STEP 1 &mdash; REFERENCE TONE GENERATOR (Pure Sine Wave)</div>
+                <div class="setting-hint" style="margin-bottom:10px;">
+                    Click a frequency to generate a pure sine wave internally. The tuner routes the signal directly to
+                    its pitch detector for 100% accurate calibration &mdash; no microphone or external device required.
+                    Tone also plays through your speakers for audible reference.
+                </div>
+
+                <div class="cal-volume-row">
+                    <label>VOLUME: <span id="cal-volume-value">50%</span></label>
+                    <input type="range" id="cal-volume" min="0" max="1" step="0.05" value="0.5" style="flex:1;">
+                    <span style="opacity:0.5;font-size:9px;">Keep moderate to avoid clipping</span>
+                </div>
+
+                <div class="tone-grid">
+                    <button class="tone-btn ref-a4" id="tone-btn-A4">
+                        <div style="font-size:15px;margin-bottom:3px;">A4</div>
+                        <div>440.00 Hz</div>
+                        <div style="font-size:8px;margin-top:2px;opacity:0.8;">&#9733; REFERENCE</div>
+                    </button>
+                    <button class="tone-btn" id="tone-btn-E2">
+                        <div style="font-size:15px;margin-bottom:3px;">E2</div>
+                        <div>82.41 Hz</div>
+                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">LOW E</div>
+                    </button>
+                    <button class="tone-btn" id="tone-btn-A2">
+                        <div style="font-size:15px;margin-bottom:3px;">A2</div>
+                        <div>110.00 Hz</div>
+                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">A STRING</div>
+                    </button>
+                    <button class="tone-btn" id="tone-btn-D3">
+                        <div style="font-size:15px;margin-bottom:3px;">D3</div>
+                        <div>146.83 Hz</div>
+                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">D STRING</div>
+                    </button>
+                    <button class="tone-btn" id="tone-btn-G3">
+                        <div style="font-size:15px;margin-bottom:3px;">G3</div>
+                        <div>196.00 Hz</div>
+                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">G STRING</div>
+                    </button>
+                    <button class="tone-btn" id="tone-btn-B3">
+                        <div style="font-size:15px;margin-bottom:3px;">B3</div>
+                        <div>246.94 Hz</div>
+                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">B STRING</div>
+                    </button>
+                    <button class="tone-btn" id="tone-btn-E4">
+                        <div style="font-size:15px;margin-bottom:3px;">E4</div>
+                        <div>329.63 Hz</div>
+                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">HIGH E</div>
+                    </button>
+                </div>
+
+                <button class="cal-btn cal-btn-stop" id="cal-stop-btn">&#9632; STOP TONE</button>
+            </div>
+
+            <!-- Section 2: Calibration Status & Auto-Calibrate -->
+            <div class="cal-section">
+                <div class="cal-section-title">&#9111; STEP 2 &mdash; CALIBRATION STATUS &amp; A4 AUTO-CALIBRATE</div>
+                <div class="cal-status-display" id="cal-status-display">
+                    <div style="opacity:0.5;text-align:center;padding:14px 0;">
+                        Select a reference tone above to begin calibration
+                    </div>
+                </div>
+                <div class="cal-message" id="cal-message" style="display:none;"></div>
+                <button class="cal-btn cal-btn-auto" id="cal-auto-btn" disabled>
+                    &#9650; AUTO-CALIBRATE A4 REFERENCE FREQUENCY
+                </button>
+                <div class="cal-info-box">
+                    <strong style="color:#00aaff;">How it works:</strong> Play A4 (440 Hz) above. Once 10+ samples
+                    are collected, the system computes the median detected frequency and calculates any offset.
+                    Click <em>AUTO-CALIBRATE</em> to adjust the A4 reference to eliminate the deviation.
+                    Use sine waves only &mdash; harmonics from real guitar strings can skew calibration.
+                    After calibrating, replay the tone to verify the status reads <span class="cal-good">CALIBRATED ✓</span>.
+                </div>
+            </div>
+
+            <!-- Section 3: Stretch Sweetening Calibration -->
+            <div class="cal-section">
+                <div class="cal-section-title">&#9835; STEP 3 &mdash; STRETCH SWEETENING CALIBRATION SWEEP</div>
+                <div class="setting-hint" style="margin-bottom:8px;">
+                    After establishing the A4 baseline, run a full sweep to verify all 6 string target frequencies
+                    (including the active stretch profile offsets) are detected correctly. This confirms the
+                    Railsback curve and intonation compensation are aligned with your A4 calibration.
+                </div>
+                <div style="font-size:9px;margin-bottom:10px;line-height:1.7;">
+                    Active stretch: <span id="cal-stretch-name" style="color:#ffff00;font-weight:bold;">OFF</span>
+                    &nbsp;&bull;&nbsp;
+                    Guitar type: <span id="cal-guitar-name" style="color:#aaffaa;font-weight:bold;">Electric</span>
+                    &nbsp;&bull;&nbsp;
+                    A4 reference: <span id="cal-a4-display" style="color:#00aaff;font-weight:bold;">440.0 Hz</span>
+                </div>
+
+                <button class="cal-btn cal-btn-sweep" id="cal-sweep-btn">
+                    &#9654;&#9654; RUN STRETCH CALIBRATION SWEEP (ALL 6 STRINGS)
+                </button>
+
+                <div id="cal-sweep-progress" style="display:none;font-size:10px;margin-top:6px;color:#ffff00;text-align:center;"></div>
+
+                <div class="stretch-cal-grid" id="stretch-cal-results" style="display:none;margin-top:10px;"></div>
+
+                <div class="cal-info-box" style="margin-top:8px;">
+                    <strong style="color:#ffff00;">Tolerance:</strong>
+                    <span class="cal-good">GREEN = &plusmn;1&cent;</span> (calibrated) &nbsp;
+                    <span class="cal-warn">YELLOW = &plusmn;1&ndash;3&cent;</span> (acceptable) &nbsp;
+                    <span class="cal-bad">RED = &gt;&plusmn;3&cent;</span> (re-calibrate A4 or adjust stretch profile)<br>
+                    If strings show consistent directional offset, use <em>AUTO-CALIBRATE</em> in Step 2 to correct A4,
+                    then re-run the sweep. String-specific offsets can be fine-tuned via the Stretch Profile in Settings.
+                </div>
             </div>
         </div>
 
@@ -1621,6 +1951,464 @@
         state.sensitivity = parseFloat(e.target.value);
         document.getElementById('sensitivity-value').textContent = Math.round(state.sensitivity * 100);
     });
+
+    // ================================================================
+    // CALIBRATION SYSTEM
+    // ================================================================
+
+    // Standard reference frequencies for all 6 guitar strings + A4 reference
+    // Sources: Peterson Strobe Tuners / Equal Temperament A4=440Hz standard
+    const CAL_TONES = [
+        { label: 'A4', freq: 440.00, isRef: true  },
+        { label: 'E2', freq: 82.41,  string: 0    },   // Low E  — Standard open E2
+        { label: 'A2', freq: 110.00, string: 1    },   // A string
+        { label: 'D3', freq: 146.83, string: 2    },   // D string
+        { label: 'G3', freq: 196.00, string: 3    },   // G string
+        { label: 'B3', freq: 246.94, string: 4    },   // B string
+        { label: 'E4', freq: 329.63, string: 5    }    // High E
+    ];
+
+    // Calibration state — fully isolated from main tuner state
+    const calState = {
+        panelOpen:       false,
+        audioCtx:        null,
+        analyser:        null,
+        oscillator:      null,
+        gainToAnalyser:  null,
+        gainToSpeaker:   null,
+        currentFreq:     0,
+        currentLabel:    '',
+        volume:          0.50,
+        collected:       [],     // Median-filtered detection buffer
+        collectTarget:   60,     // Frames to keep (rolling window)
+        animFrame:       null,
+        sweepRunning:    false,
+        sweepStep:       0,
+        sweepResults:    [],
+        sweepTimerId:    null
+    };
+
+    // ── Audio helpers ────────────────────────────────────────────────
+
+    function calEnsureAudio() {
+        if (calState.audioCtx && calState.audioCtx.state !== 'closed') return;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        calState.audioCtx = new AC();
+        calState.analyser = calState.audioCtx.createAnalyser();
+        calState.analyser.fftSize = 4096;
+        calState.analyser.smoothingTimeConstant = 0;
+    }
+
+    function calPlayTone(freq, label) {
+        calEnsureAudio();
+        calStopTone();
+
+        calState.oscillator = calState.audioCtx.createOscillator();
+        calState.oscillator.type = 'sine';
+        calState.oscillator.frequency.value = freq;
+
+        // Internal path: oscillator → gain → analyser (pitch detection, silent)
+        calState.gainToAnalyser = calState.audioCtx.createGain();
+        calState.gainToAnalyser.gain.value = 0.8;
+
+        // Speaker path: oscillator → gain → destination (audible output)
+        calState.gainToSpeaker = calState.audioCtx.createGain();
+        calState.gainToSpeaker.gain.value = calState.volume;
+
+        calState.oscillator.connect(calState.gainToAnalyser);
+        calState.gainToAnalyser.connect(calState.analyser);
+        calState.oscillator.connect(calState.gainToSpeaker);
+        calState.gainToSpeaker.connect(calState.audioCtx.destination);
+
+        calState.oscillator.start();
+        calState.currentFreq  = freq;
+        calState.currentLabel = label;
+        calState.collected    = [];
+
+        // Highlight active tone button
+        document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('active'));
+        const activeBtn = document.getElementById('tone-btn-' + label);
+        if (activeBtn) activeBtn.classList.add('active');
+
+        // Start detection loop
+        if (!calState.animFrame) calDetectionLoop();
+
+        updateCalStatusDisplay();
+    }
+
+    function calStopTone() {
+        if (calState.oscillator) {
+            try { calState.oscillator.stop(); } catch (e) {}
+            calState.oscillator.disconnect();
+            calState.oscillator = null;
+        }
+        if (calState.gainToAnalyser) { calState.gainToAnalyser.disconnect(); calState.gainToAnalyser = null; }
+        if (calState.gainToSpeaker)  { calState.gainToSpeaker.disconnect();  calState.gainToSpeaker  = null; }
+
+        calState.currentFreq  = 0;
+        calState.currentLabel = '';
+        calState.collected    = [];
+
+        document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('active'));
+
+        if (calState.animFrame) {
+            cancelAnimationFrame(calState.animFrame);
+            calState.animFrame = null;
+        }
+
+        updateCalStatusDisplay();
+    }
+
+    // ── Detection loop ────────────────────────────────────────────────
+
+    function calDetectionLoop() {
+        if (!calState.audioCtx || !calState.analyser || calState.currentFreq === 0) {
+            calState.animFrame = null;
+            return;
+        }
+
+        const buffer = new Float32Array(calState.analyser.fftSize);
+        calState.analyser.getFloatTimeDomainData(buffer);
+
+        // Borrow detectPitch() using calibration audio context for correct sample rate.
+        // Save & restore main-tuner context so the live display is unaffected.
+        const savedCtx = state.audioContext;
+        const savedRms = state.rms;
+        state.audioContext = calState.audioCtx;
+
+        const pitch = detectPitch(buffer);
+
+        state.audioContext = savedCtx;
+        state.rms          = savedRms;
+
+        if (pitch !== null) {
+            calState.collected.push(pitch);
+            if (calState.collected.length > calState.collectTarget) {
+                calState.collected.shift();
+            }
+        }
+
+        updateCalStatusDisplay();
+
+        calState.animFrame = (calState.currentFreq > 0)
+            ? requestAnimationFrame(calDetectionLoop)
+            : null;
+    }
+
+    function calMedianDetected() {
+        const d = calState.collected;
+        if (d.length < 5) return null;
+        const sorted = [...d].sort((a, b) => a - b);
+        return sorted[Math.floor(sorted.length / 2)];
+    }
+
+    // ── Status display ─────────────────────────────────────────────
+
+    function updateCalStatusDisplay() {
+        const display = document.getElementById('cal-status-display');
+        const autoBtn = document.getElementById('cal-auto-btn');
+        if (!display) return;
+
+        if (calState.currentFreq === 0) {
+            display.innerHTML =
+                '<div style="opacity:0.5;text-align:center;padding:14px 0;">' +
+                'Select a reference tone above to begin calibration</div>';
+            if (autoBtn) autoBtn.disabled = true;
+            return;
+        }
+
+        const detected   = calMedianDetected();
+        const sampleCount = calState.collected.length;
+        const isReady    = sampleCount >= 10;
+
+        const genLine = `<div class="cal-metric">
+            <span class="cal-metric-label">GENERATING:</span>
+            <span class="cal-metric-value cal-blue">${calState.currentLabel} &mdash; ${calState.currentFreq.toFixed(2)} Hz &nbsp; (pure sine wave)</span>
+        </div>`;
+
+        let body;
+
+        if (!isReady) {
+            body = `
+            <div class="cal-metric">
+                <span class="cal-metric-label">DETECTING:</span>
+                <span class="cal-metric-value cal-warn">ANALYZING&hellip; (${sampleCount} / ${calState.collectTarget} samples)</span>
+            </div>
+            <div class="cal-metric">
+                <span class="cal-metric-label">STATUS:</span>
+                <span class="cal-metric-value cal-warn">COLLECTING DATA &mdash; PLEASE WAIT</span>
+            </div>`;
+            if (autoBtn) autoBtn.disabled = true;
+        } else {
+            const devHz    = detected - calState.currentFreq;
+            const devCents = 1200 * Math.log2(detected / calState.currentFreq);
+            const absC     = Math.abs(devCents);
+            const cls      = absC < 0.5 ? 'cal-good' : absC < 2.0 ? 'cal-warn' : 'cal-bad';
+            const status   = absC < 0.5
+                ? 'CALIBRATED &#10003;'
+                : absC < 2.0
+                    ? 'MINOR OFFSET &mdash; CONSIDER AUTO-CALIBRATE'
+                    : 'OFFSET DETECTED &mdash; AUTO-CALIBRATE RECOMMENDED';
+            const hSign = devHz   >= 0 ? '+' : '';
+            const cSign = devCents >= 0 ? '+' : '';
+
+            body = `
+            <div class="cal-metric">
+                <span class="cal-metric-label">DETECTED:</span>
+                <span class="cal-metric-value cal-good">${detected.toFixed(3)} Hz &nbsp; (${sampleCount} samples)</span>
+            </div>
+            <div class="cal-metric">
+                <span class="cal-metric-label">DEVIATION:</span>
+                <span class="cal-metric-value ${cls}">${hSign}${devHz.toFixed(3)} Hz &nbsp; ${cSign}${devCents.toFixed(2)}&cent;</span>
+            </div>
+            <div class="cal-metric">
+                <span class="cal-metric-label">STATUS:</span>
+                <span class="cal-metric-value ${cls}">${status}</span>
+            </div>`;
+            if (autoBtn) autoBtn.disabled = (absC < 0.5);
+        }
+
+        display.innerHTML = genLine + body;
+    }
+
+    // ── Auto-calibrate A4 ─────────────────────────────────────────
+
+    function calAutoCalibrate() {
+        const detected = calMedianDetected();
+        if (!detected || calState.currentFreq === 0) return;
+
+        // Scale A4 so that the detected frequency equals the generated reference.
+        // Formula: newA4 = currentA4 × (expectedFreq / detectedFreq)
+        const correctionFactor = calState.currentFreq / detected;
+        const newA4 = Math.max(430, Math.min(450,
+            parseFloat((state.a4Calibration * correctionFactor).toFixed(1))
+        ));
+
+        const devCents = 1200 * Math.log2(calState.currentFreq / detected);
+        const oldA4    = state.a4Calibration;
+
+        state.a4Calibration = newA4;
+        document.getElementById('a4-calibration').value = newA4;
+        document.getElementById('a4-value').textContent  = newA4.toFixed(1);
+        document.getElementById('cal-a4-display').textContent = newA4.toFixed(1) + ' Hz';
+
+        updateStringSelector();
+        updateTargetDisplay();
+        updateSystemStatus();
+        updateNoteLockFrequency();
+
+        // Reset buffer so the updated A4 is immediately verified
+        calState.collected = [];
+
+        const sign = devCents >= 0 ? '+' : '';
+        calShowMessage(
+            `A4 adjusted: ${oldA4.toFixed(1)} \u2192 ${newA4.toFixed(1)} Hz  (corrected ${sign}${devCents.toFixed(2)}\u00A2)`,
+            'cal-good'
+        );
+    }
+
+    function calShowMessage(msg, cls) {
+        const el = document.getElementById('cal-message');
+        if (!el) return;
+        el.textContent = msg;
+        el.className   = 'cal-message ' + (cls || '');
+        el.style.display = 'block';
+        clearTimeout(el._timer);
+        el._timer = setTimeout(() => { el.style.display = 'none'; }, 5000);
+    }
+
+    // ── Stretch Sweetening Sweep ──────────────────────────────────
+
+    function runStretchCalSweep() {
+        if (calState.sweepRunning) return;
+
+        calState.sweepRunning = true;
+        calState.sweepStep    = 0;
+        calState.sweepResults = [];
+
+        const sweepBtn     = document.getElementById('cal-sweep-btn');
+        const resultsEl    = document.getElementById('stretch-cal-results');
+        const progressEl   = document.getElementById('cal-sweep-progress');
+
+        if (sweepBtn)   { sweepBtn.disabled = true; sweepBtn.textContent = 'SWEEP IN PROGRESS\u2026'; }
+        if (resultsEl)  resultsEl.style.display = 'none';
+        if (progressEl) progressEl.style.display = 'block';
+
+        runStretchCalStep();
+    }
+
+    function runStretchCalStep() {
+        const preset     = tuningPresets[state.tuningPreset];
+        const numStrings = preset.notes.length;
+
+        if (calState.sweepStep >= numStrings) {
+            // Sweep complete
+            calState.sweepRunning = false;
+            calStopTone();
+
+            const sweepBtn   = document.getElementById('cal-sweep-btn');
+            const progressEl = document.getElementById('cal-sweep-progress');
+            if (sweepBtn)   { sweepBtn.disabled = false; sweepBtn.textContent = '\u25BA\u25BA RUN STRETCH CALIBRATION SWEEP (ALL 6 STRINGS)'; }
+            if (progressEl) progressEl.style.display = 'none';
+
+            renderStretchCalResults();
+            calShowMessage('Stretch sweep complete. Review results below.', 'cal-good');
+            return;
+        }
+
+        const si         = calState.sweepStep;
+        const targetFreq = getTargetFrequency(si);
+        const label      = preset.notes[si] + preset.octaves[si];
+
+        const progressEl = document.getElementById('cal-sweep-progress');
+        if (progressEl) {
+            progressEl.textContent =
+                `Testing string ${si + 1}/${numStrings}: ${label} \u2014 ${targetFreq.toFixed(2)} Hz`;
+        }
+
+        calPlayTone(targetFreq, label);
+
+        // Collect for 2.5 seconds then advance to next string
+        clearTimeout(calState.sweepTimerId);
+        calState.sweepTimerId = setTimeout(() => {
+            const detected = calMedianDetected();
+            calState.sweepResults.push({
+                stringIndex:   si,
+                note:          label,
+                targetFreq:    targetFreq,
+                detectedFreq:  detected,
+                devCents:      detected ? calculateCents(detected, targetFreq) : null,
+                stretchOffset: stretchProfiles[state.stretchProfile].offsets[si],
+                compOffset:    state.useCompensation
+                    ? (stringCompensation[state.guitarType][si] || 0)
+                    : 0
+            });
+
+            calState.sweepStep++;
+            runStretchCalStep();
+        }, 2500);
+    }
+
+    function renderStretchCalResults() {
+        const el = document.getElementById('stretch-cal-results');
+        if (!el || calState.sweepResults.length === 0) return;
+
+        let html = '';
+
+        for (const r of calState.sweepResults) {
+            const hasData  = r.detectedFreq !== null;
+            const absC     = hasData ? Math.abs(r.devCents) : null;
+            const cls      = !hasData ? 'cal-warn'
+                           : absC < 1.0 ? 'cal-good'
+                           : absC < 3.0 ? 'cal-warn'
+                           : 'cal-bad';
+            const detStr   = hasData ? r.detectedFreq.toFixed(2) + ' Hz' : '&mdash;';
+            const devStr   = hasData
+                ? (r.devCents >= 0 ? '+' : '') + r.devCents.toFixed(2) + '&cent;'
+                : '&mdash;';
+            const stretchTxt = r.stretchOffset !== 0
+                ? `<div style="font-size:8px;color:#ffff00;margin-top:1px;">${r.stretchOffset > 0 ? '+' : ''}${r.stretchOffset.toFixed(1)}&cent; str</div>`
+                : '';
+
+            html += `<div class="stretch-cal-item">
+                <div class="sci-note">${r.note}</div>
+                <div class="sci-target">${r.targetFreq.toFixed(2)} Hz</div>
+                ${stretchTxt}
+                <div class="sci-det ${cls}">${detStr}</div>
+                <div class="sci-dev ${cls}">${devStr}</div>
+            </div>`;
+        }
+
+        el.innerHTML    = html;
+        el.style.display = 'grid';
+    }
+
+    // ── Panel open / close ────────────────────────────────────────
+
+    function openCalibrationPanel() {
+        calState.panelOpen = true;
+        document.getElementById('calibration-panel').classList.add('active');
+        document.getElementById('cal-btn').textContent = 'HIDE CAL';
+        document.getElementById('cal-btn').classList.add('active');
+
+        // Sync dynamic labels with current settings
+        document.getElementById('cal-stretch-name').textContent =
+            stretchProfiles[state.stretchProfile].name;
+        document.getElementById('cal-guitar-name').textContent =
+            state.guitarType.charAt(0).toUpperCase() + state.guitarType.slice(1);
+        document.getElementById('cal-a4-display').textContent =
+            state.a4Calibration.toFixed(1) + ' Hz';
+
+        // Sync volume slider
+        const volEl = document.getElementById('cal-volume');
+        if (volEl) {
+            volEl.value = calState.volume;
+            document.getElementById('cal-volume-value').textContent =
+                Math.round(calState.volume * 100) + '%';
+        }
+
+        updateCalStatusDisplay();
+    }
+
+    function closeCalibrationPanel() {
+        calState.panelOpen = false;
+        calStopTone();
+
+        if (calState.sweepTimerId) {
+            clearTimeout(calState.sweepTimerId);
+            calState.sweepTimerId = null;
+            calState.sweepRunning = false;
+        }
+
+        const sweepBtn = document.getElementById('cal-sweep-btn');
+        if (sweepBtn) {
+            sweepBtn.disabled    = false;
+            sweepBtn.textContent = '\u25BA\u25BA RUN STRETCH CALIBRATION SWEEP (ALL 6 STRINGS)';
+        }
+
+        document.getElementById('calibration-panel').classList.remove('active');
+        document.getElementById('cal-btn').textContent = 'CALIBRATE';
+        document.getElementById('cal-btn').classList.remove('active');
+    }
+
+    // ── Calibration event listeners ──────────────────────────────
+
+    // Panel toggle
+    document.getElementById('cal-btn').addEventListener('click', () => {
+        calState.panelOpen ? closeCalibrationPanel() : openCalibrationPanel();
+    });
+
+    // Tone buttons (click active tone to stop; click different tone to switch)
+    CAL_TONES.forEach(tone => {
+        const btn = document.getElementById('tone-btn-' + tone.label);
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            if (calState.currentLabel === tone.label) {
+                calStopTone();
+            } else {
+                calPlayTone(tone.freq, tone.label);
+            }
+        });
+    });
+
+    // Stop button
+    document.getElementById('cal-stop-btn').addEventListener('click', calStopTone);
+
+    // Auto-calibrate
+    document.getElementById('cal-auto-btn').addEventListener('click', calAutoCalibrate);
+
+    // Volume control
+    document.getElementById('cal-volume').addEventListener('input', (e) => {
+        calState.volume = parseFloat(e.target.value);
+        document.getElementById('cal-volume-value').textContent =
+            Math.round(calState.volume * 100) + '%';
+        if (calState.gainToSpeaker) {
+            calState.gainToSpeaker.gain.value = calState.volume;
+        }
+    });
+
+    // Stretch sweep
+    document.getElementById('cal-sweep-btn').addEventListener('click', runStretchCalSweep);
 
     // ================================================================
     // INITIALIZATION
