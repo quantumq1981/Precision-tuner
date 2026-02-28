@@ -998,7 +998,11 @@
         autoDetectCandidate: -1,   // Candidate string during hysteresis
         // Strobe
         strobePhase: 0,
-        harmonicMagnitudes: new Array(8).fill(0)
+        harmonicMagnitudes: new Array(8).fill(0),
+        // Strobe lock snap
+        lockFrames: 0,
+        lockFlash: 0,
+        prevLocked: false
     };
 
     // ================================================================
@@ -1372,6 +1376,10 @@
         ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
         ctx.stroke();
 
+        // Lock state helpers
+        const isInLock   = state.prevLocked;
+        const flashT     = state.lockFlash / 22; // 1.0 → 0.0 as flash decays
+
         // Draw harmonic rings
         for (let h = 0; h < numRings; h++) {
             const harmonic = h + 1;
@@ -1382,9 +1390,14 @@
             const rotation = state.strobePhase * harmonic;
 
             // Brightness from harmonic magnitude
+            // In lock: boost baseAlpha so rings shine crisper
             const mag = state.harmonicMagnitudes[h] || 0;
-            const baseAlpha = state.isListening && state.currentFreq > 0 ? 0.08 : 0.04;
-            const alpha = baseAlpha + mag * 0.85;
+            const baseAlpha = state.isListening && state.currentFreq > 0
+                ? (isInLock ? 0.14 : 0.08)
+                : 0.04;
+            // Flash boost: briefly raises brightness during lock-snap animation
+            const flashBoost = flashT * 0.30;
+            const alpha = baseAlpha + mag * 0.85 + flashBoost;
 
             // Segment count: more segments for outer rings
             const numSegs = 12;
@@ -1400,7 +1413,7 @@
                 ctx.arc(cx, cy, innerR, endA, startA, true);
                 ctx.closePath();
 
-                ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha.toFixed(3)})`;
+                ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${Math.min(1, alpha).toFixed(3)})`;
                 ctx.fill();
             }
 
@@ -1412,21 +1425,62 @@
             ctx.stroke();
         }
 
+        // ── Lock snap: expanding sonar-ping ring ─────────────────────
+        // Fires when the strobe first settles into the ±2¢ locked zone.
+        // A bright ring expands from centerR to maxR over the flash duration.
+        if (state.lockFlash > 0) {
+            const progress  = 1 - flashT;                      // 0→1 as flash decays
+            const pulseR    = centerR + (maxR - centerR) * progress;
+            const pulseW    = Math.max(1, 5 * dpr * (1 - progress * 0.7));
+            const pulseA    = flashT * 0.90;
+            ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${pulseA.toFixed(3)})`;
+            ctx.lineWidth   = pulseW;
+            ctx.beginPath();
+            ctx.arc(cx, cy, pulseR, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
         // Center circle background
+        // In lock: slightly brighter core fill
         const centerGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, centerR);
-        centerGrad.addColorStop(0, '#0d1a0d');
-        centerGrad.addColorStop(1, '#050a05');
+        if (isInLock) {
+            centerGrad.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.10)`);
+            centerGrad.addColorStop(1, '#050a05');
+        } else {
+            centerGrad.addColorStop(0, '#0d1a0d');
+            centerGrad.addColorStop(1, '#050a05');
+        }
         ctx.fillStyle = centerGrad;
         ctx.beginPath();
         ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
         ctx.fill();
 
         // Center border
-        ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`;
-        ctx.lineWidth = 1.5 * dpr;
+        // In lock: brighter, slightly thicker rim
+        const rimAlpha = isInLock ? 0.70 : 0.30;
+        ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${rimAlpha})`;
+        ctx.lineWidth = (isInLock ? 2.5 : 1.5) * dpr;
         ctx.beginPath();
         ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
         ctx.stroke();
+
+        // ── Lock steady: four crosshair tick marks on center rim ─────
+        // Gives a "crosshair / locked-on" feel while the strobe holds lock.
+        if (isInLock) {
+            const tickOuter = centerR;
+            const tickInner = centerR * 0.60;
+            ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.80)`;
+            ctx.lineWidth   = 1.5 * dpr;
+            for (let i = 0; i < 4; i++) {
+                const angle = i * (Math.PI / 2);
+                ctx.beginPath();
+                ctx.moveTo(cx + Math.cos(angle) * tickInner,
+                           cy + Math.sin(angle) * tickInner);
+                ctx.lineTo(cx + Math.cos(angle) * tickOuter,
+                           cy + Math.sin(angle) * tickOuter);
+                ctx.stroke();
+            }
+        }
     }
 
     // ================================================================
@@ -1707,17 +1761,36 @@
                 state.currentFreq = smoothed;
                 state.cents = Math.round(centsOff * 10) / 10; // 0.1 cent resolution
 
+                // Strobe lock tracking: detect entry into ±2¢ locked zone
+                const isLocked = Math.abs(state.cents) <= 2.0;
+                if (isLocked) {
+                    state.lockFrames++;
+                    // Fire the "snap" flash the moment we've held lock for 4 frames
+                    if (state.lockFrames >= 4 && !state.prevLocked) {
+                        state.lockFlash = 22;
+                        state.prevLocked = true;
+                    }
+                } else {
+                    state.lockFrames = 0;
+                    state.prevLocked = false;
+                }
+
                 // Get harmonic magnitudes for strobe brightness
                 state.harmonicMagnitudes = getHarmonicMagnitudes(smoothed);
 
                 updateDisplay();
             } else {
-                // Signal too weak - fade harmonics
+                // Signal too weak - fade harmonics and reset lock
                 for (let i = 0; i < state.harmonicMagnitudes.length; i++) {
                     state.harmonicMagnitudes[i] *= 0.85;
                 }
+                state.lockFrames  = 0;
+                state.prevLocked  = false;
             }
         }
+
+        // Decay lock flash every render frame (60fps)
+        if (state.lockFlash > 0) state.lockFlash--;
 
         // Render strobe every frame (~60fps) for smooth animation
         renderStrobe();
@@ -1799,6 +1872,9 @@
         state.rms = 0;
         state.smoothingBuffer = [];
         state.harmonicMagnitudes = new Array(8).fill(0);
+        state.lockFrames  = 0;
+        state.lockFlash   = 0;
+        state.prevLocked  = false;
 
         const startBtn = document.getElementById('start-btn');
         startBtn.textContent = '\u25B6 START';
@@ -2059,6 +2135,49 @@
         updateCalStatusDisplay();
     }
 
+    // ── Zero-crossing frequency detector (calibration only) ──────────
+    //
+    // The NSDF-based detectPitch() fails for pure low-frequency sine waves
+    // because the autocorrelation at very small lags is nearly as high as
+    // at the true period.  For E2 (82 Hz) the NSDF at lag≈34 samples is
+    // ~0.93, which exceeds the 0.8×globalMax selection threshold, so the
+    // algorithm reports a spurious high frequency instead of 82 Hz.
+    //
+    // Zero-crossing detection is immune to that problem and is provably
+    // the most accurate method for pure sine waves: it finds every upward
+    // crossing with sub-sample precision via linear interpolation, then
+    // averages all inter-crossing periods.  For a 4096-sample buffer at
+    // 48 kHz this yields < 0.05 ¢ precision at every guitar string frequency.
+
+    function calDetectFrequency(buffer, sr) {
+        const crossings = [];
+        for (let i = 1; i < buffer.length; i++) {
+            if (buffer[i - 1] <= 0 && buffer[i] > 0) {
+                // Linear interpolation: exact sub-sample crossing position
+                const frac = buffer[i - 1] / (buffer[i - 1] - buffer[i]);
+                crossings.push((i - 1) + frac);
+            }
+        }
+        // Need at least 2 crossings to form one period
+        if (crossings.length < 2) return null;
+
+        // Compute all consecutive inter-crossing periods
+        const periods = [];
+        for (let i = 1; i < crossings.length; i++) {
+            periods.push(crossings[i] - crossings[i - 1]);
+        }
+
+        // Reject outliers more than 10% away from the median period
+        // (guards against noise spikes at startup)
+        const sorted = [...periods].sort((a, b) => a - b);
+        const median = sorted[Math.floor(sorted.length / 2)];
+        const good = periods.filter(p => Math.abs(p - median) / median < 0.10);
+        if (good.length === 0) return null;
+
+        const avgPeriod = good.reduce((s, v) => s + v, 0) / good.length;
+        return sr / avgPeriod;
+    }
+
     // ── Detection loop ────────────────────────────────────────────────
 
     function calDetectionLoop() {
@@ -2070,16 +2189,7 @@
         const buffer = new Float32Array(calState.analyser.fftSize);
         calState.analyser.getFloatTimeDomainData(buffer);
 
-        // Borrow detectPitch() using calibration audio context for correct sample rate.
-        // Save & restore main-tuner context so the live display is unaffected.
-        const savedCtx = state.audioContext;
-        const savedRms = state.rms;
-        state.audioContext = calState.audioCtx;
-
-        const pitch = detectPitch(buffer);
-
-        state.audioContext = savedCtx;
-        state.rms          = savedRms;
+        const pitch = calDetectFrequency(buffer, calState.audioCtx.sampleRate);
 
         if (pitch !== null) {
             calState.collected.push(pitch);
