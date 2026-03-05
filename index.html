@@ -998,12 +998,33 @@
         autoDetectCandidate: -1,   // Candidate string during hysteresis
         // Strobe
         strobePhase: 0,
-        harmonicMagnitudes: new Array(8).fill(0),
+        harmonicMagnitudes: new Float32Array(8),
         // Strobe lock snap
         lockFrames: 0,
         lockFlash: 0,
         prevLocked: false
     };
+
+    // ================================================================
+    // PRE-ALLOCATED DSP BUFFERS
+    // ================================================================
+    // All sizes derived from fixed fftSize = 4096.
+    // Eliminates ~64 KB of typed-array allocation per detection cycle
+    // (~30 cycles/s), preventing GC pauses that cause pitch-jitter.
+    const _timeDomainBuf = new Float32Array(4096);          // analyser.getFloatTimeDomainData
+    const _freqDomainBuf = new Float32Array(2049);          // analyser.getFloatFrequencyData  (fftSize/2 + 1)
+    const _cumEBuf       = new Float64Array(4097);          // NSDF cumulative energy           (W + 1 max)
+    const _nsdfBuf       = new Float32Array(2049);          // NSDF values                      (maxLag + 1 max)
+
+    // Cached DOM element references (populated in init — avoids repeated querySelector)
+    const _el = {};
+
+    // Render timing for frame-rate-independent strobe phase (handles 90 / 120 Hz displays)
+    let _lastRenderMs = 0;
+
+    // RGB cache for strobe renderer — avoids hex→int parse every rAF frame
+    let _cachedStrobeColor = '';
+    let _cachedStrobeRgb   = { r: 0, g: 255, b: 0 };
 
     // ================================================================
     // TUNING DATA
@@ -1143,13 +1164,15 @@
 
         // Precompute cumulative energy for efficient NSDF normalization
         // cumE[i] = sum of buf[j]^2 for j = i..W-1
-        const cumE = new Float64Array(W + 1);
+        // Reuse pre-allocated buffer. cumE[W] must be 0 (sentinel for backward pass).
+        const cumE = _cumEBuf;
+        cumE[W] = 0; // sentinel — critical when reusing across calls
         for (let i = W - 1; i >= 0; i--) {
             cumE[i] = cumE[i + 1] + buf[i] * buf[i];
         }
 
-        // Compute NSDF for each lag in range
-        const nsdf = new Float32Array(maxLag + 1);
+        // Compute NSDF for each lag in range (reuse pre-allocated buffer)
+        const nsdf = _nsdfBuf;
         for (let tau = minLag; tau <= maxLag; tau++) {
             let acf = 0;
             const len = W - tau;
@@ -1263,38 +1286,33 @@
     // HARMONIC ANALYSIS (FFT)
     // ================================================================
 
+    // Writes directly into state.harmonicMagnitudes (no allocation on hot path).
+    // Uses pre-allocated _freqDomainBuf instead of creating a new Float32Array each call.
     function getHarmonicMagnitudes(fundamentalFreq) {
+        const mags = state.harmonicMagnitudes;
         if (!state.analyser || fundamentalFreq <= 0) {
-            return new Array(8).fill(0);
+            for (let i = 0; i < 8; i++) mags[i] = 0;
+            return;
         }
 
-        const freqData = new Float32Array(state.analyser.frequencyBinCount);
-        state.analyser.getFloatFrequencyData(freqData);
-
-        const sr = state.audioContext.sampleRate;
-        const binSize = sr / state.analyser.fftSize;
-        const mags = [];
+        state.analyser.getFloatFrequencyData(_freqDomainBuf);
+        const sr       = state.audioContext.sampleRate;
+        const binSize  = sr / state.analyser.fftSize;
+        const binCount = state.analyser.frequencyBinCount; // fftSize / 2 + 1
 
         for (let h = 1; h <= 8; h++) {
-            const hFreq = fundamentalFreq * h;
-            const bin = Math.round(hFreq / binSize);
-
-            if (bin >= 0 && bin < freqData.length) {
+            const bin = Math.round(fundamentalFreq * h / binSize);
+            if (bin >= 0 && bin < binCount) {
                 // freqData is in dB (-100 silence to ~0 max)
-                const db = freqData[bin];
-                // Check neighboring bins for peak (harmonic might not land exactly on a bin)
-                let peakDb = db;
-                if (bin > 0) peakDb = Math.max(peakDb, freqData[bin - 1]);
-                if (bin < freqData.length - 1) peakDb = Math.max(peakDb, freqData[bin + 1]);
-                // Normalize to 0..1 range
-                const linear = Math.max(0, Math.min(1, (peakDb + 80) / 70));
-                mags.push(linear);
+                // Check ±1 bin: harmonic may not land exactly on a bin center
+                let peakDb = _freqDomainBuf[bin];
+                if (bin > 0)          peakDb = Math.max(peakDb, _freqDomainBuf[bin - 1]);
+                if (bin < binCount-1) peakDb = Math.max(peakDb, _freqDomainBuf[bin + 1]);
+                mags[h - 1] = Math.max(0, Math.min(1, (peakDb + 80) / 70));
             } else {
-                mags.push(0);
+                mags[h - 1] = 0;
             }
         }
-
-        return mags;
     }
 
     // ================================================================
@@ -1326,8 +1344,10 @@
         return 'ADJUSTING';
     }
 
-    // Strobe phase accumulation rate
-    const STROBE_RATE = 0.0025; // radians per frame per cent deviation
+    // Strobe phase rate: radians per second per cent of deviation.
+    // Equivalent to the original 0.0025 rad/frame × 60 fps = 0.15 rad·s⁻¹·¢⁻¹.
+    // Using wall-clock time makes the strobe speed identical on 60 / 90 / 120 Hz displays.
+    const STROBE_RATE = 0.15; // rad · s⁻¹ · ¢⁻¹
 
     function renderStrobe() {
         const dpr = window.devicePixelRatio || 1;
@@ -1350,11 +1370,24 @@
         const color = state.isListening && state.currentFreq > 0
             ? getStatusColor(state.cents)
             : '#00ff00';
-        const rgb = hexToRgb(color);
 
-        // Update strobe phase (accumulates based on cents deviation)
+        // Cache hex→RGB: string comparison is O(7) chars vs repeated parseInt calls
+        if (color !== _cachedStrobeColor) {
+            _cachedStrobeRgb   = hexToRgb(color);
+            _cachedStrobeColor = color;
+        }
+        const rgb = _cachedStrobeRgb;
+
+        // Frame-rate-independent phase update.
+        // Caps dt at 50 ms to prevent a large jump after a tab becomes visible again.
+        const now = performance.now();
+        const dtSec = _lastRenderMs > 0
+            ? Math.min((now - _lastRenderMs) * 0.001, 0.05)
+            : 0.01667; // assume 60 fps on the very first frame
+        _lastRenderMs = now;
+
         if (state.isListening && state.currentFreq > 0) {
-            state.strobePhase += state.cents * STROBE_RATE;
+            state.strobePhase += state.cents * STROBE_RATE * dtSec;
         }
 
         // Clear
@@ -1530,37 +1563,26 @@
         const color = getStatusColor(state.cents);
         const label = getStatusLabel(state.cents);
 
-        // Status text
-        const statusEl = document.getElementById('status-text');
-        statusEl.textContent = label;
-        statusEl.style.color = color;
+        // Use cached element references — avoids repeated querySelector on every call
+        _el.statusText.textContent = label;
+        _el.statusText.style.color = color;
 
-        // Frequency
-        document.getElementById('freq-display').textContent = state.currentFreq.toFixed(2) + ' Hz';
+        _el.freqDisplay.textContent = state.currentFreq.toFixed(2) + ' Hz';
 
-        // Cents
-        const centsEl = document.getElementById('cents-display');
         const sign = state.cents > 0.05 ? '+' : '';
-        centsEl.textContent = sign + state.cents.toFixed(1) + '\u00A2';
-        centsEl.style.color = color;
+        _el.centsDisplay.textContent = sign + state.cents.toFixed(1) + '\u00A2';
+        _el.centsDisplay.style.color = color;
 
-        // Main display border
-        const mainEl = document.getElementById('main-display');
-        mainEl.style.borderColor = color;
-        mainEl.style.boxShadow = `0 0 20px ${color}44`;
+        _el.mainDisplay.style.borderColor = color;
+        _el.mainDisplay.style.boxShadow = `0 0 20px ${color}44`;
 
-        // Note overlay color
-        const overlayEl = document.getElementById('strobe-note-overlay');
-        overlayEl.style.color = color;
+        _el.noteOverlay.style.color = color;
 
-        // Precision indicator
-        const indicator = document.getElementById('precision-indicator');
         const pct = 50 + (Math.max(-50, Math.min(50, state.cents)) / 50) * 48;
-        indicator.style.left = pct + '%';
-        indicator.style.background = color;
+        _el.precIndicator.style.left = pct + '%';
+        _el.precIndicator.style.background = color;
 
-        // RMS
-        document.getElementById('status-rms').textContent = (state.rms * 100).toFixed(1);
+        _el.statusRms.textContent = (state.rms * 100).toFixed(1);
     }
 
     function updateSystemStatus() {
@@ -1742,13 +1764,11 @@
 
         state.frameCounter++;
 
-        // Pitch detection every other frame (~30fps) for efficiency
+        // Pitch detection every other frame (~30fps) for efficiency.
+        // _timeDomainBuf is pre-allocated — no GC allocation on this path.
         if (state.frameCounter % 2 === 0) {
-            const bufferLength = state.analyser.fftSize;
-            const buffer = new Float32Array(bufferLength);
-            state.analyser.getFloatTimeDomainData(buffer);
-
-            const rawPitch = detectPitch(buffer);
+            state.analyser.getFloatTimeDomainData(_timeDomainBuf);
+            const rawPitch = detectPitch(_timeDomainBuf);
             const smoothed = smoothPitch(rawPitch);
 
             if (smoothed) {
@@ -1775,8 +1795,8 @@
                     state.prevLocked = false;
                 }
 
-                // Get harmonic magnitudes for strobe brightness
-                state.harmonicMagnitudes = getHarmonicMagnitudes(smoothed);
+                // Get harmonic magnitudes for strobe brightness (writes in-place, no allocation)
+                getHarmonicMagnitudes(smoothed);
 
                 updateDisplay();
             } else {
@@ -1871,7 +1891,7 @@
         state.cents = 0;
         state.rms = 0;
         state.smoothingBuffer = [];
-        state.harmonicMagnitudes = new Array(8).fill(0);
+        state.harmonicMagnitudes = new Float32Array(8);
         state.lockFrames  = 0;
         state.lockFlash   = 0;
         state.prevLocked  = false;
@@ -2536,7 +2556,18 @@
         });
     }
 
+    function cacheElements() {
+        _el.statusText    = document.getElementById('status-text');
+        _el.freqDisplay   = document.getElementById('freq-display');
+        _el.centsDisplay  = document.getElementById('cents-display');
+        _el.mainDisplay   = document.getElementById('main-display');
+        _el.noteOverlay   = document.getElementById('strobe-note-overlay');
+        _el.precIndicator = document.getElementById('precision-indicator');
+        _el.statusRms     = document.getElementById('status-rms');
+    }
+
     function init() {
+        cacheElements();
         initPrecisionTicks();
         updateStringSelector();
         updateTargetDisplay();
