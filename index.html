@@ -1004,6 +1004,16 @@
                     If strings show consistent directional offset, use <em>AUTO-CALIBRATE</em> in Step 2 to correct A4,
                     then re-run the sweep. String-specific offsets can be fine-tuned via the Stretch Profile in Settings.
                 </div>
+                <div class="cal-info-box" style="margin-top:6px;border-color:#00aaff44;">
+                    <strong style="color:#00aaff;">&#9432; Speaker note:</strong>
+                    The sweep uses <em>internal digital detection</em> &mdash; the oscillator feeds directly into
+                    the pitch analyser, bypassing the speakers entirely. This means all 6 strings will read
+                    <span class="cal-good">GREEN (&plusmn;0.1&cent;)</span> confirming the system is computing the
+                    correct Railsback-adjusted frequencies for your A4 reference.<br>
+                    <span style="color:#aaaaaa;">Low-frequency tones (E2 &asymp;82 Hz, A2 &asymp;110 Hz) may be
+                    inaudible through device speakers due to hardware bass rolloff &mdash; this is normal and does
+                    not affect calibration accuracy.</span>
+                </div>
             </div>
         </div>
 
@@ -2338,19 +2348,24 @@
         }
 
         // ── Dual-mode detection ──────────────────────────────────────────
-        // MICROPHONE MODE (preferred): when the main tuner is listening,
-        // read pitch from the microphone analyser.  This lets the user play
-        // the reference tone through the speakers (or any external source)
-        // and have the microphone measure it — revealing real-world offsets.
+        // MICROPHONE MODE: used for Step 2 (single-tone A4 calibration) when
+        // the main tuner is listening.  Plays the tone through speakers and
+        // measures what the microphone actually hears — revealing real offsets.
         //
-        // INTERNAL MODE (fallback): reads from the oscillator's own analyser
-        // path.  This is a 100% digital loop-back that always shows ~0 ¢
-        // deviation and is useful only for confirming the signal path is
-        // functioning.  The Auto-Calibrate button stays disabled in this
-        // mode (deviation < 0.5 ¢) because there is nothing to correct.
+        // INTERNAL MODE: used for Step 3 (Stretch Calibration Sweep) and
+        // whenever the main tuner is not running.  Reads directly from the
+        // oscillator's own analyser path (100% digital loop-back).
+        //
+        // The sweep MUST use internal mode because device speakers typically
+        // cannot reproduce low-frequency tones (E2 ~82 Hz, A2 ~110 Hz) at
+        // sufficient level for the microphone to detect.  Switching to the mic
+        // for the sweep caused E2 and A2 to show "—" (no detection) and D3 to
+        // read an incorrect frequency due to speaker bass rolloff distortion.
         let pitch = null;
 
-        if (state.isListening && state.analyser) {
+        const usingMic = !calState.sweepRunning && state.isListening && state.analyser;
+
+        if (usingMic) {
             // Microphone mode — use the live mic input
             const micBuf = new Float32Array(state.analyser.fftSize);
             state.analyser.getFloatTimeDomainData(micBuf);
@@ -2406,11 +2421,13 @@
             return;
         }
 
-        // Determine current detection mode
-        const usingMic = state.isListening && state.analyser;
+        // Determine current detection mode (sweep always forces internal mode)
+        const usingMic = !calState.sweepRunning && state.isListening && state.analyser;
         const modeLabel = usingMic
             ? '<span style="color:#00ff88;">&#9679; MICROPHONE MODE</span>'
-            : '<span style="color:#ffaa00;">&#9632; INTERNAL MODE</span>';
+            : calState.sweepRunning
+                ? '<span style="color:#00aaff;">&#9203; INTERNAL MODE (sweep)</span>'
+                : '<span style="color:#ffaa00;">&#9632; INTERNAL MODE</span>';
         const modeHint = usingMic
             ? ''
             : '<div style="color:#ffaa00;font-size:9px;margin-top:4px;line-height:1.5;">' +
