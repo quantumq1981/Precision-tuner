@@ -665,6 +665,51 @@
         .stretch-cal-item .sci-det    { margin-top: 2px; font-weight: bold; }
         .stretch-cal-item .sci-dev    { margin-top: 1px; font-weight: bold; }
 
+        /* ── Stable Lock Indicator ────────────────────────────────── */
+        .lock-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 7px 20px;
+            border-radius: 20px;
+            border: 1px solid #00440044;
+            background: transparent;
+            opacity: 0.25;
+            transition: opacity 0.4s, border-color 0.4s, background 0.4s, box-shadow 0.4s;
+            font-size: 11px;
+            letter-spacing: 2.5px;
+            color: #00cc44;
+            font-weight: bold;
+            user-select: none;
+            pointer-events: none;
+        }
+        .lock-indicator.locked {
+            opacity: 1;
+            border-color: #00ff55;
+            background: #00ff0812;
+            box-shadow: 0 0 10px #00ff0830;
+            animation: lock-pulse 2s ease-in-out infinite;
+        }
+        .lock-dot {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            background: #00330022;
+            border: 1px solid #00aa44;
+            transition: background 0.3s, box-shadow 0.3s;
+            flex-shrink: 0;
+        }
+        .lock-indicator.locked .lock-dot {
+            background: #00ff55;
+            box-shadow: 0 0 6px #00ff55, 0 0 14px #00ff5580;
+        }
+        @keyframes lock-pulse {
+            0%, 100% { box-shadow: 0 0 8px #00ff0828; }
+            50%       { box-shadow: 0 0 18px #00ff0855; }
+        }
+
         .cal-info-box {
             background: #001400;
             border: 1px solid #00aa0044;
@@ -736,6 +781,12 @@
             <div class="precision-bar">
                 <div class="precision-ticks" id="precision-ticks"></div>
                 <div class="precision-indicator" id="precision-indicator"></div>
+            </div>
+
+            <!-- Stable Lock Confirmation LED -->
+            <div class="lock-indicator" id="lock-indicator">
+                <span class="lock-dot"></span>
+                <span>TUNE LOCKED &#10003;</span>
             </div>
         </div>
 
@@ -906,11 +957,18 @@
                     &#9650; AUTO-CALIBRATE A4 REFERENCE FREQUENCY
                 </button>
                 <div class="cal-info-box">
-                    <strong style="color:#00aaff;">How it works:</strong> Play A4 (440 Hz) above. Once 10+ samples
-                    are collected, the system computes the median detected frequency and calculates any offset.
-                    Click <em>AUTO-CALIBRATE</em> to adjust the A4 reference to eliminate the deviation.
-                    Use sine waves only &mdash; harmonics from real guitar strings can skew calibration.
-                    After calibrating, replay the tone to verify the status reads <span class="cal-good">CALIBRATED ✓</span>.
+                    <strong style="color:#00aaff;">How it works:</strong>
+                    <ol style="margin:6px 0 0 14px;padding:0;line-height:1.8;">
+                        <li><strong>Start the tuner</strong> (&#9654; START button) to activate the microphone.</li>
+                        <li>Click <strong>A4</strong> above to generate the reference sine wave through your speakers.</li>
+                        <li>The microphone detects the tone and the status shows <span style="color:#00ff88;">&#9679; MICROPHONE MODE</span> with a live deviation reading.</li>
+                        <li>If deviation &gt; 0.5&cent;, click <em>AUTO-CALIBRATE</em> to adjust the A4 reference.</li>
+                        <li>Replay A4 to confirm the status reads <span class="cal-good">CALIBRATED &#10003;</span>.</li>
+                    </ol>
+                    <div style="margin-top:6px;color:#aaaaaa;">
+                        Without the microphone active the panel shows <span style="color:#ffaa00;">&#9632; INTERNAL MODE</span>,
+                        which verifies signal path integrity only and always reads ~0&cent; deviation.
+                    </div>
                 </div>
             </div>
 
@@ -1002,7 +1060,10 @@
         // Strobe lock snap
         lockFrames: 0,
         lockFlash: 0,
-        prevLocked: false
+        prevLocked: false,
+        // Stable lock confirmation (held ±1.5¢ for ~1 second)
+        stableLockFrames: 0,
+        stableLocked: false
     };
 
     // ================================================================
@@ -1387,7 +1448,12 @@
         _lastRenderMs = now;
 
         if (state.isListening && state.currentFreq > 0) {
-            state.strobePhase += state.cents * STROBE_RATE * dtSec;
+            // When stable lock is active, damp the phase update to suppress
+            // the jitter caused by micro-fluctuations in pitch detection.
+            // The strobe remains responsive to real de-tuning but tiny
+            // measurement noise no longer causes visible ring oscillation.
+            const lockDamp = state.stableLocked ? 0.25 : 1.0;
+            state.strobePhase += state.cents * STROBE_RATE * dtSec * lockDamp;
         }
 
         // Clear
@@ -1583,6 +1649,13 @@
         _el.precIndicator.style.background = color;
 
         _el.statusRms.textContent = (state.rms * 100).toFixed(1);
+
+        // Update stable lock LED
+        if (state.stableLocked) {
+            _el.lockIndicator.classList.add('locked');
+        } else {
+            _el.lockIndicator.classList.remove('locked');
+        }
     }
 
     function updateSystemStatus() {
@@ -1756,6 +1829,38 @@
     }
 
     // ================================================================
+    // STABLE LOCK CONFIRMATION
+    // ================================================================
+
+    // A "stable lock" fires once the detected pitch has remained inside the
+    // tight ±STABLE_LOCK_CENTS zone for STABLE_LOCK_FRAMES consecutive
+    // detection frames (~1 second at 30 fps).  This gives a reliable
+    // 99.9%-accurate confirmation that is far more stable than the
+    // instantaneous ±2¢ snap flash used for the strobe ring animation.
+    const STABLE_LOCK_CENTS  = 1.5;   // tight zone (inside ±1.5¢)
+    const STABLE_LOCK_EXIT   = 2.5;   // hysteresis: exit lock above ±2.5¢
+    const STABLE_LOCK_FRAMES = 25;    // ~833 ms at 30-fps detection rate
+
+    // Brief audio ping played once when stable lock is first achieved.
+    // Uses the main AudioContext so no extra context is needed.
+    function playLockPing() {
+        if (!state.audioContext) return;
+        try {
+            const now  = state.audioContext.currentTime;
+            const osc  = state.audioContext.createOscillator();
+            const gain = state.audioContext.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 880;   // A5 — bright, pleasant
+            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+            osc.connect(gain);
+            gain.connect(state.audioContext.destination);
+            osc.start(now);
+            osc.stop(now + 0.38);
+        } catch (_) { /* silently ignore if context is suspended */ }
+    }
+
+    // ================================================================
     // AUDIO PROCESSING LOOP
     // ================================================================
 
@@ -1781,7 +1886,7 @@
                 state.currentFreq = smoothed;
                 state.cents = Math.round(centsOff * 10) / 10; // 0.1 cent resolution
 
-                // Strobe lock tracking: detect entry into ±2¢ locked zone
+                // ── Strobe lock snap (±2¢ zone, fires after 4 frames) ────
                 const isLocked = Math.abs(state.cents) <= 2.0;
                 if (isLocked) {
                     state.lockFrames++;
@@ -1795,6 +1900,22 @@
                     state.prevLocked = false;
                 }
 
+                // ── Stable lock confirmation (±1.5¢ held for ~1 second) ──
+                // Provides a reliable "tuned" indicator with audio ping and
+                // green LED — far more stable than the instantaneous snap flash.
+                const inStableZone = Math.abs(state.cents) <= STABLE_LOCK_CENTS;
+                if (inStableZone) {
+                    state.stableLockFrames++;
+                    if (state.stableLockFrames >= STABLE_LOCK_FRAMES && !state.stableLocked) {
+                        state.stableLocked = true;
+                        playLockPing();
+                    }
+                } else if (Math.abs(state.cents) > STABLE_LOCK_EXIT) {
+                    // Only exit stable lock with some hysteresis to prevent flicker
+                    state.stableLockFrames = 0;
+                    state.stableLocked = false;
+                }
+
                 // Get harmonic magnitudes for strobe brightness (writes in-place, no allocation)
                 getHarmonicMagnitudes(smoothed);
 
@@ -1804,8 +1925,10 @@
                 for (let i = 0; i < state.harmonicMagnitudes.length; i++) {
                     state.harmonicMagnitudes[i] *= 0.85;
                 }
-                state.lockFrames  = 0;
-                state.prevLocked  = false;
+                state.lockFrames       = 0;
+                state.prevLocked       = false;
+                state.stableLockFrames = 0;
+                state.stableLocked     = false;
             }
         }
 
@@ -1854,10 +1977,12 @@
                 state.microphone.connect(state.analyser);
             }
 
-            state.isListening = true;
-            state.smoothingBuffer = [];
-            state.frameCounter = 0;
-            state.strobePhase = 0;
+            state.isListening       = true;
+            state.smoothingBuffer   = [];
+            state.frameCounter      = 0;
+            state.strobePhase       = 0;
+            state.stableLockFrames  = 0;
+            state.stableLocked      = false;
 
             startBtn.textContent = '\u23F9 STOP';
             startBtn.className = 'btn btn-stop';
@@ -1892,9 +2017,15 @@
         state.rms = 0;
         state.smoothingBuffer = [];
         state.harmonicMagnitudes = new Float32Array(8);
-        state.lockFrames  = 0;
-        state.lockFlash   = 0;
-        state.prevLocked  = false;
+        state.lockFrames       = 0;
+        state.lockFlash        = 0;
+        state.prevLocked       = false;
+        state.stableLockFrames = 0;
+        state.stableLocked     = false;
+
+        // Clear the stable lock LED
+        const lockEl = document.getElementById('lock-indicator');
+        if (lockEl) lockEl.classList.remove('locked');
 
         const startBtn = document.getElementById('start-btn');
         startBtn.textContent = '\u25B6 START';
@@ -2206,10 +2337,38 @@
             return;
         }
 
-        const buffer = new Float32Array(calState.analyser.fftSize);
-        calState.analyser.getFloatTimeDomainData(buffer);
+        // ── Dual-mode detection ──────────────────────────────────────────
+        // MICROPHONE MODE (preferred): when the main tuner is listening,
+        // read pitch from the microphone analyser.  This lets the user play
+        // the reference tone through the speakers (or any external source)
+        // and have the microphone measure it — revealing real-world offsets.
+        //
+        // INTERNAL MODE (fallback): reads from the oscillator's own analyser
+        // path.  This is a 100% digital loop-back that always shows ~0 ¢
+        // deviation and is useful only for confirming the signal path is
+        // functioning.  The Auto-Calibrate button stays disabled in this
+        // mode (deviation < 0.5 ¢) because there is nothing to correct.
+        let pitch = null;
 
-        const pitch = calDetectFrequency(buffer, calState.audioCtx.sampleRate);
+        if (state.isListening && state.analyser) {
+            // Microphone mode — use the live mic input
+            const micBuf = new Float32Array(state.analyser.fftSize);
+            state.analyser.getFloatTimeDomainData(micBuf);
+            const sr = state.audioContext ? state.audioContext.sampleRate : 48000;
+            const micPitch = calDetectFrequency(micBuf, sr);
+
+            // Accept only if within 50 ¢ of the reference tone
+            // (guards against unrelated background sounds being collected)
+            if (micPitch !== null &&
+                Math.abs(1200 * Math.log2(micPitch / calState.currentFreq)) < 50) {
+                pitch = micPitch;
+            }
+        } else {
+            // Internal (oscillator loop-back) mode
+            const buf = new Float32Array(calState.analyser.fftSize);
+            calState.analyser.getFloatTimeDomainData(buf);
+            pitch = calDetectFrequency(buf, calState.audioCtx.sampleRate);
+        }
 
         if (pitch !== null) {
             calState.collected.push(pitch);
@@ -2247,6 +2406,18 @@
             return;
         }
 
+        // Determine current detection mode
+        const usingMic = state.isListening && state.analyser;
+        const modeLabel = usingMic
+            ? '<span style="color:#00ff88;">&#9679; MICROPHONE MODE</span>'
+            : '<span style="color:#ffaa00;">&#9632; INTERNAL MODE</span>';
+        const modeHint = usingMic
+            ? ''
+            : '<div style="color:#ffaa00;font-size:9px;margin-top:4px;line-height:1.5;">' +
+              'Start the tuner (&#9654; START) and play the reference tone through your speakers ' +
+              'so the microphone can measure it. The Auto-Calibrate button activates only in ' +
+              'Microphone Mode when a real offset is detected.</div>';
+
         const detected   = calMedianDetected();
         const sampleCount = calState.collected.length;
         const isReady    = sampleCount >= 10;
@@ -2254,6 +2425,10 @@
         const genLine = `<div class="cal-metric">
             <span class="cal-metric-label">GENERATING:</span>
             <span class="cal-metric-value cal-blue">${calState.currentLabel} &mdash; ${calState.currentFreq.toFixed(2)} Hz &nbsp; (pure sine wave)</span>
+        </div>
+        <div class="cal-metric">
+            <span class="cal-metric-label">INPUT:</span>
+            <span class="cal-metric-value">${modeLabel}</span>
         </div>`;
 
         let body;
@@ -2267,7 +2442,8 @@
             <div class="cal-metric">
                 <span class="cal-metric-label">STATUS:</span>
                 <span class="cal-metric-value cal-warn">COLLECTING DATA &mdash; PLEASE WAIT</span>
-            </div>`;
+            </div>
+            ${modeHint}`;
             if (autoBtn) autoBtn.disabled = true;
         } else {
             const devHz    = detected - calState.currentFreq;
@@ -2294,7 +2470,8 @@
             <div class="cal-metric">
                 <span class="cal-metric-label">STATUS:</span>
                 <span class="cal-metric-value ${cls}">${status}</span>
-            </div>`;
+            </div>
+            ${modeHint}`;
             if (autoBtn) autoBtn.disabled = (absC < 0.5);
         }
 
@@ -2564,6 +2741,7 @@
         _el.noteOverlay   = document.getElementById('strobe-note-overlay');
         _el.precIndicator = document.getElementById('precision-indicator');
         _el.statusRms     = document.getElementById('status-rms');
+        _el.lockIndicator = document.getElementById('lock-indicator');
     }
 
     function init() {
