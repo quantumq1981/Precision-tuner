@@ -313,6 +313,17 @@
             margin-top: 3px;
         }
 
+        .hint-inline {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 5px;
+            border: 1px solid #00ff0044;
+            border-radius: 10px;
+            font-size: 9px;
+            color: #aaffaa;
+            cursor: help;
+        }
+
         select, input[type="range"] {
             width: 100%;
             background: #000;
@@ -723,6 +734,9 @@
         @media (max-width: 600px) {
             .tone-grid { grid-template-columns: repeat(4, 1fr); }
             .stretch-cal-grid { grid-template-columns: repeat(2, 1fr); }
+            .tone-btn,
+            .string-btn,
+            .btn-auto { min-height: 54px; }
         }
 
         /* Responsive */
@@ -754,9 +768,9 @@
                 <div class="status-item">TUNING: <span id="status-tuning">Standard</span></div>
                 <div class="status-item">STRETCH: <span id="status-stretch" class="status-highlight">OFF</span></div>
                 <div class="status-item">A4: <span id="status-a4">440.0</span> Hz</div>
-                <div class="status-item">DETECT: <span id="status-detect" class="status-highlight">AUTO</span></div>
-                <div class="status-item">COMP: <span id="status-comp">ON</span></div>
-                <div class="status-item">RMS: <span id="status-rms">0.0</span>%</div>
+                <div class="status-item" title="Pitch capture mode. AUTO follows the nearest string, LOCKED uses Note-Lock, MANUAL stays on the selected string.">DETECT: <span id="status-detect" class="status-highlight">AUTO</span></div>
+                <div class="status-item" title="Intonation compensation applies per-string offsets to account for guitar setup and fretting behavior.">COMP: <span id="status-comp">ON</span></div>
+                <div class="status-item" title="Live RMS input level. Higher values mean stronger incoming audio at the detector input.">RMS: <span id="status-rms">0.0</span>%</div>
             </div>
         </div>
 
@@ -878,7 +892,7 @@
 
             <!-- Sensitivity -->
             <div class="setting-group">
-                <label class="setting-label">Detection Sensitivity: <span id="sensitivity-value">75</span>%</label>
+                <label class="setting-label">Detection Sensitivity: <span id="sensitivity-value">75</span>% <span class="hint-inline" title="Lower values ignore more room noise. Higher values react to quieter notes, but can become more jittery in noisy spaces.">DETECT?</span></label>
                 <input type="range" id="sensitivity" min="0.2" max="1.0" step="0.05" value="0.75">
                 <div class="setting-hint">Lower = ignores more background noise. Higher = more responsive in quiet environments.</div>
             </div>
@@ -1047,6 +1061,7 @@
         audioContext: null,
         analyser: null,
         microphone: null,
+        inputStream: null,
         noteLockFilter: null,
         animationFrame: null,
         smoothingBuffer: [],
@@ -1073,7 +1088,9 @@
         prevLocked: false,
         // Stable lock confirmation (held ±1.5¢ for ~1 second)
         stableLockFrames: 0,
-        stableLocked: false
+        stableLocked: false,
+        debugLogging: false,
+        lastDebugLogMs: 0
     };
 
     // ================================================================
@@ -1679,6 +1696,7 @@
         document.getElementById('status-a4').textContent = state.a4Calibration.toFixed(1);
 
         const detectEl = document.getElementById('status-detect');
+        detectEl.style.color = '';
         if (state.autoDetect) {
             detectEl.textContent = 'AUTO';
             detectEl.className = 'status-highlight';
@@ -1849,7 +1867,22 @@
     // instantaneous ±2¢ snap flash used for the strobe ring animation.
     const STABLE_LOCK_CENTS  = 1.5;   // tight zone (inside ±1.5¢)
     const STABLE_LOCK_EXIT   = 2.5;   // hysteresis: exit lock above ±2.5¢
-    const STABLE_LOCK_FRAMES = 25;    // ~833 ms at 30-fps detection rate
+    const STABLE_LOCK_FRAMES = 36;    // ~1.2 s at 30-fps detection rate
+
+    function debugLogDetection(source, detectedFreq, targetFreq, centsValue) {
+        if (!state.debugLogging) return;
+        const now = performance.now();
+        if (now - state.lastDebugLogMs < 250) return;
+        state.lastDebugLogMs = now;
+        console.debug('[PrecisionTuner]', {
+            source,
+            detectedHz: Number(detectedFreq.toFixed(3)),
+            targetHz: Number(targetFreq.toFixed(3)),
+            cents: Number(centsValue.toFixed(2)),
+            a4Reference: Number(state.a4Calibration.toFixed(1)),
+            rmsPercent: Number((state.rms * 100).toFixed(2))
+        });
+    }
 
     // Brief audio ping played once when stable lock is first achieved.
     // Uses the main AudioContext so no extra context is needed.
@@ -1895,6 +1928,7 @@
 
                 state.currentFreq = smoothed;
                 state.cents = Math.round(centsOff * 10) / 10; // 0.1 cent resolution
+                debugLogDetection('microphone', smoothed, targetFreq, state.cents);
 
                 // ── Strobe lock snap (±2¢ zone, fires after 4 frames) ────
                 const isLocked = Math.abs(state.cents) <= 2.0;
@@ -1978,6 +2012,7 @@
             state.analyser.fftSize = 4096; // Good balance: resolution for E2, low latency
             state.analyser.smoothingTimeConstant = 0;
 
+            state.inputStream = stream;
             state.microphone = state.audioContext.createMediaStreamSource(stream);
 
             // Connect (with or without Note-Lock filter)
@@ -1991,6 +2026,7 @@
             state.smoothingBuffer   = [];
             state.frameCounter      = 0;
             state.strobePhase       = 0;
+            _lastRenderMs           = 0;
             state.stableLockFrames  = 0;
             state.stableLocked      = false;
 
@@ -2016,12 +2052,16 @@
             state.noteLockFilter = null;
         }
         if (state.microphone) state.microphone.disconnect();
+        if (state.inputStream) {
+            state.inputStream.getTracks().forEach(track => track.stop());
+        }
         if (state.audioContext) state.audioContext.close();
 
         state.isListening = false;
         state.audioContext = null;
         state.analyser = null;
         state.microphone = null;
+        state.inputStream = null;
         state.currentFreq = 0;
         state.cents = 0;
         state.rms = 0;
@@ -2032,6 +2072,8 @@
         state.prevLocked       = false;
         state.stableLockFrames = 0;
         state.stableLocked     = false;
+        state.lastDebugLogMs   = 0;
+        _lastRenderMs          = 0;
 
         // Clear the stable lock LED
         const lockEl = document.getElementById('lock-indicator');
@@ -2390,6 +2432,10 @@
             if (calState.collected.length > calState.collectTarget) {
                 calState.collected.shift();
             }
+            if (state.debugLogging) {
+                const cents = calculateCents(pitch, calState.currentFreq);
+                debugLogDetection(usingMic ? 'calibration-microphone' : 'calibration-internal', pitch, calState.currentFreq, cents);
+            }
         }
 
         updateCalStatusDisplay();
@@ -2467,6 +2513,7 @@
             const devCents = 1200 * Math.log2(detected / calState.currentFreq);
             const absC     = Math.abs(devCents);
             const cls      = absC < 0.5 ? 'cal-good' : absC < 2.0 ? 'cal-warn' : 'cal-bad';
+            const autoCalEligible = usingMic && calState.currentLabel === 'A4' && absC >= 0.5;
             const status   = absC < 0.5
                 ? 'CALIBRATED &#10003;'
                 : absC < 2.0
@@ -2488,8 +2535,12 @@
                 <span class="cal-metric-label">STATUS:</span>
                 <span class="cal-metric-value ${cls}">${status}</span>
             </div>
+            <div class="cal-metric">
+                <span class="cal-metric-label">AUTO-CAL:</span>
+                <span class="cal-metric-value ${autoCalEligible ? 'cal-good' : 'cal-warn'}">${autoCalEligible ? 'READY (A4 microphone match)' : 'AVAILABLE ONLY FOR A4 IN MICROPHONE MODE'}</span>
+            </div>
             ${modeHint}`;
-            if (autoBtn) autoBtn.disabled = (absC < 0.5);
+            if (autoBtn) autoBtn.disabled = !autoCalEligible;
         }
 
         display.innerHTML = genLine + body;
@@ -2499,7 +2550,11 @@
 
     function calAutoCalibrate() {
         const detected = calMedianDetected();
-        if (!detected || calState.currentFreq === 0) return;
+        const usingMic = !calState.sweepRunning && state.isListening && state.analyser;
+        if (!detected || calState.currentFreq === 0 || calState.currentLabel !== 'A4' || !usingMic) {
+            calShowMessage('Auto-calibrate only runs for A4 while microphone mode is active.', 'cal-warn');
+            return;
+        }
 
         // Scale A4 so that the detected frequency equals the generated reference.
         // Formula: newA4 = currentA4 × (expectedFreq / detectedFreq)
@@ -2762,6 +2817,21 @@
     }
 
     function init() {
+        window.precisionTunerDebug = {
+            state,
+            getTargetFrequency,
+            calculateCents,
+            detectPitch,
+            calDetectFrequency,
+            enableLogs() {
+                state.debugLogging = true;
+                console.info('Precision Tuner debug logging enabled.');
+            },
+            disableLogs() {
+                state.debugLogging = false;
+                console.info('Precision Tuner debug logging disabled.');
+            }
+        };
         cacheElements();
         initPrecisionTicks();
         updateStringSelector();
