@@ -1089,8 +1089,12 @@
         // Stable lock confirmation (held ±1.5¢ for ~1 second)
         stableLockFrames: 0,
         stableLocked: false,
+        // Debug logging flag and throttle (main branch additions)
         debugLogging: false,
-        lastDebugLogMs: 0
+        lastDebugLogMs: 0,
+        // EMA-smoothed cents value used only for the precision indicator bar.
+        // Kept separate from state.cents so the numerical readout remains crisp.
+        displayedCents: 0
     };
 
     // ================================================================
@@ -1305,8 +1309,9 @@
             if (km.val > globalMax) globalMax = km.val;
         }
 
-        // Select the FIRST key maximum that exceeds 0.8 * globalMax
-        // This avoids octave errors by preferring the fundamental over harmonics
+        // ── Peak selection ────────────────────────────────────────────
+        // Standard McLeod rule: first key maximum ≥ 0.8 × globalMax.
+        // "First" = lowest lag = highest frequency in the candidate set.
         const selectThreshold = 0.8 * globalMax;
         let bestPeak = null;
         for (const km of keyMaxima) {
@@ -1317,6 +1322,25 @@
         }
 
         if (!bestPeak || bestPeak.val < 0.4) return null;
+
+        // ── Sub-harmonic preference: guard against E2/A2 octave errors ─
+        // On low strings the 2nd harmonic can dominate the NSDF, causing the
+        // algorithm to select its period (lag ≈ 291 for E2 at 48 kHz) rather
+        // than the fundamental (lag ≈ 582).  After the initial selection we
+        // look for a peak near 2× the chosen lag that also exceeds the
+        // threshold; if found, we prefer the lower-frequency candidate.
+        if (bestPeak) {
+            const doubleLag = bestPeak.pos * 2;
+            for (const km of keyMaxima) {
+                if (km.pos > bestPeak.pos &&
+                    km.pos >= doubleLag * 0.88 &&
+                    km.pos <= doubleLag * 1.12 &&
+                    km.val >= selectThreshold) {
+                    bestPeak = km;   // prefer the lower-octave candidate
+                    break;
+                }
+            }
+        }
 
         // Parabolic interpolation for sub-sample accuracy
         const p = bestPeak.pos;
@@ -1671,7 +1695,10 @@
 
         _el.noteOverlay.style.color = color;
 
-        const pct = 50 + (Math.max(-50, Math.min(50, state.cents)) / 50) * 48;
+        // Use EMA-smoothed displayedCents for the indicator position so the
+        // needle settles smoothly near lock instead of twitching on each frame.
+        // The numerical cents readout above still shows the raw, crisp value.
+        const pct = 50 + (Math.max(-50, Math.min(50, state.displayedCents)) / 50) * 48;
         _el.precIndicator.style.left = pct + '%';
         _el.precIndicator.style.background = color;
 
@@ -1910,7 +1937,20 @@
     function processAudio() {
         if (!state.isListening || !state.analyser) return;
 
+        // ── AudioContext auto-resume ──────────────────────────────────
+        // Browsers (especially mobile) can suspend the AudioContext at any
+        // time.  Resume silently so the tuner self-heals without user action.
+        if (state.audioContext && state.audioContext.state === 'suspended') {
+            state.audioContext.resume().catch(() => {});
+        }
+
         state.frameCounter++;
+
+        // ── Error boundary ────────────────────────────────────────────
+        // A thrown exception anywhere in the detection pipeline must NOT
+        // stop the rAF loop — that would leave the user with a frozen
+        // display and no indication of the failure.
+        try {
 
         // Pitch detection every other frame (~30fps) for efficiency.
         // _timeDomainBuf is pre-allocated — no GC allocation on this path.
@@ -1929,6 +1969,13 @@
                 state.currentFreq = smoothed;
                 state.cents = Math.round(centsOff * 10) / 10; // 0.1 cent resolution
                 debugLogDetection('microphone', smoothed, targetFreq, state.cents);
+
+                // ── EMA-smoothed displayed cents (precision indicator bar) ─
+                // Uses a faster EMA during detection and a slower one when
+                // stably locked, so the needle settles visually near lock
+                // without lag during active tuning.
+                const emaK = state.stableLocked ? 0.10 : 0.35;
+                state.displayedCents = state.displayedCents * (1 - emaK) + state.cents * emaK;
 
                 // ── Strobe lock snap (±2¢ zone, fires after 4 frames) ────
                 const isLocked = Math.abs(state.cents) <= 2.0;
@@ -1963,6 +2010,24 @@
                 // Get harmonic magnitudes for strobe brightness (writes in-place, no allocation)
                 getHarmonicMagnitudes(smoothed);
 
+                // ── Debug telemetry (enable with: window.TUNER_DEBUG = true) ─
+                if (window.TUNER_DEBUG) {
+                    const preset  = tuningPresets[state.tuningPreset];
+                    const noteName = preset.notes[state.selectedString] +
+                                     preset.octaves[state.selectedString];
+                    console.log('[Tuner]', {
+                        freq:        state.currentFreq.toFixed(3) + ' Hz',
+                        note:        noteName,
+                        cents:       (state.cents >= 0 ? '+' : '') + state.cents.toFixed(1) + '\u00A2',
+                        rms:         state.rms.toFixed(5),
+                        a4:          state.a4Calibration + ' Hz',
+                        stretch:     state.stretchProfile,
+                        stableLock:  state.stableLocked,
+                        lockFrames:  state.stableLockFrames + '/' + STABLE_LOCK_FRAMES,
+                        ctxState:    state.audioContext ? state.audioContext.state : 'n/a'
+                    });
+                }
+
                 updateDisplay();
             } else {
                 // Signal too weak - fade harmonics and reset lock
@@ -1973,7 +2038,18 @@
                 state.prevLocked       = false;
                 state.stableLockFrames = 0;
                 state.stableLocked     = false;
+                // Gently return displayedCents toward centre when no signal
+                state.displayedCents  *= 0.92;
             }
+        }
+
+        } catch (err) {
+            // Log the error but allow the loop to continue on the next frame.
+            console.error('[Tuner] processAudio exception — recovering:', err);
+            state.lockFrames       = 0;
+            state.prevLocked       = false;
+            state.stableLockFrames = 0;
+            state.stableLocked     = false;
         }
 
         // Decay lock flash every render frame (60fps)
@@ -2008,12 +2084,31 @@
             const AC = window.AudioContext || window.webkitAudioContext;
             state.audioContext = new AC();
 
+            // Browsers (especially mobile) may create the context in a
+            // 'suspended' state even inside a user-gesture handler.
+            // Resume explicitly so audio processing starts immediately.
+            if (state.audioContext.state === 'suspended') {
+                await state.audioContext.resume();
+            }
+
             state.analyser = state.audioContext.createAnalyser();
             state.analyser.fftSize = 4096; // Good balance: resolution for E2, low latency
             state.analyser.smoothingTimeConstant = 0;
 
             state.inputStream = stream;
             state.microphone = state.audioContext.createMediaStreamSource(stream);
+
+            // ── Microphone disconnect guard ────────────────────────────
+            // Fires if the user unplugs or the OS revokes the device while
+            // the tuner is running.  Stops cleanly instead of hanging silently.
+            stream.getTracks().forEach(track => {
+                track.addEventListener('ended', () => {
+                    if (state.isListening) {
+                        showError('Microphone disconnected. Click \u25B6 START to reconnect.');
+                        stopListening();
+                    }
+                });
+            });
 
             // Connect (with or without Note-Lock filter)
             if (state.noteLockEnabled) {
@@ -2029,6 +2124,7 @@
             _lastRenderMs           = 0;
             state.stableLockFrames  = 0;
             state.stableLocked      = false;
+            state.displayedCents    = 0;
 
             startBtn.textContent = '\u23F9 STOP';
             startBtn.className = 'btn btn-stop';
@@ -2073,6 +2169,7 @@
         state.stableLockFrames = 0;
         state.stableLocked     = false;
         state.lastDebugLogMs   = 0;
+        state.displayedCents   = 0;
         _lastRenderMs          = 0;
 
         // Clear the stable lock LED
@@ -2842,6 +2939,76 @@
     }
 
     init();
+
+    // ================================================================
+    // BACKGROUND TAB / VISIBILITY CHANGE
+    // ================================================================
+    // Browsers throttle requestAnimationFrame when the tab is hidden,
+    // which pauses the strobe render and pitch-detection display updates.
+    // The Web Audio API continues processing audio in the background so
+    // no samples are lost — display simply resumes when the tab returns.
+    // We show a brief advisory so the user understands the behaviour.
+    (function () {
+        let hiddenBanner = null;
+
+        function ensureBanner() {
+            if (!hiddenBanner) {
+                hiddenBanner = document.createElement('div');
+                hiddenBanner.id = 'bg-tab-banner';
+                hiddenBanner.style.cssText = [
+                    'position:fixed', 'top:0', 'left:0', 'right:0',
+                    'background:#111', 'color:#ffaa00',
+                    'text-align:center', 'padding:8px',
+                    'font:bold 11px/1 monospace', 'letter-spacing:1px',
+                    'z-index:9999', 'display:none'
+                ].join(';');
+                hiddenBanner.textContent =
+                    '\u23F8 DISPLAY PAUSED \u2014 Audio processing continues in background. Return to this tab to resume display.';
+                document.body.appendChild(hiddenBanner);
+            }
+            return hiddenBanner;
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            const banner = ensureBanner();
+            if (document.hidden) {
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+                // rAF resumes automatically; reset render timing to avoid a
+                // large phase jump caused by the tab being hidden for a while.
+                _lastRenderMs = 0;
+            }
+        });
+    })();
+
+    // ================================================================
+    // DEVELOPER DEBUG MODE
+    // ================================================================
+    // Enable with:  window.TUNER_DEBUG = true   (browser console)
+    // Dumps per-frame telemetry: frequency, cents, RMS, lock state, etc.
+    // Automatically logs a settings state-dump whenever A4 ref or stretch
+    // profile changes so regressions can be traced to a config change.
+    (function () {
+        const _origA4Listener = document.getElementById('a4-calibration');
+        if (_origA4Listener) {
+            _origA4Listener.addEventListener('change', () => {
+                if (window.TUNER_DEBUG) {
+                    console.log('[Tuner] Settings dump:', {
+                        a4:          state.a4Calibration,
+                        stretch:     state.stretchProfile,
+                        guitar:      state.guitarType,
+                        temperament: state.temperament,
+                        compensation: state.useCompensation,
+                        sensitivity: state.sensitivity,
+                        ctxSampleRate: state.audioContext
+                            ? state.audioContext.sampleRate + ' Hz' : 'n/a'
+                    });
+                }
+            });
+        }
+    })();
+
     </script>
 </body>
 </html>
