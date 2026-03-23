@@ -167,7 +167,10 @@ function bootstrapDebugApi() {
     vm.createContext(sandbox);
     vm.runInContext(scriptMatch[1], sandbox, { filename: 'index.html' });
 
-    return sandbox.window.precisionTunerDebug;
+    return {
+        debugApi: sandbox.window.precisionTunerDebug,
+        document
+    };
 }
 
 function assert(condition, message) {
@@ -175,7 +178,7 @@ function assert(condition, message) {
 }
 
 function main() {
-    const debugApi = bootstrapDebugApi();
+    const { debugApi, document } = bootstrapDebugApi();
     assert(debugApi, 'precisionTunerDebug was not initialized');
 
     const e2Gain = debugApi.getCalibrationSpeakerGain('E2');
@@ -189,9 +192,21 @@ function main() {
     assert(e2Gain >= 1.1, 'Expected E2 speaker gain to be strongly boosted');
     assert(a2Gain >= 1.0, 'Expected A2 speaker gain to be strongly boosted');
 
+    document.getElementById('cal-volume').value = '0.75';
+    const boostedE2Gain = debugApi.getCalibrationSpeakerGain('E2');
+    const boostedA4Gain = debugApi.getCalibrationSpeakerGain('A4');
+    console.log(`Speaker gains @ 75% volume → E2=${boostedE2Gain.toFixed(3)} A4=${boostedA4Gain.toFixed(3)}`);
+    assert(Math.abs(boostedA4Gain - 0.75) < 1e-9, 'Expected A4 gain to follow the calibration volume slider exactly');
+    assert(boostedE2Gain > e2Gain, 'Expected E2 gain to scale up when the calibration volume slider increases');
+
     const tones = [
         { label: 'E2', freq: 82.41 },
-        { label: 'A2', freq: 110.00 }
+        { label: 'A2', freq: 110.00 },
+        { label: 'D3', freq: 146.83 },
+        { label: 'G3', freq: 196.00 },
+        { label: 'B3', freq: 246.94 },
+        { label: 'E4', freq: 329.63 },
+        { label: 'A4', freq: 440.00 }
     ];
 
     for (const tone of tones) {
@@ -203,6 +218,10 @@ function main() {
         assert(result.collected === 60, `${tone.label} did not collect all 60 simulated samples`);
         assert(Math.abs(result.centsError) < 0.1, `${tone.label} cents error exceeded calibration tolerance`);
     }
+
+    const e2Multiplier = debugApi.getCalibrationBoostMultiplier(82.41);
+    const a4Multiplier = debugApi.getCalibrationBoostMultiplier(440.00);
+    assert(e2Multiplier > a4Multiplier, 'Expected low-frequency boost multiplier to exceed the A4 multiplier');
 
     console.log('Calibration reference tone checks passed.');
 }
