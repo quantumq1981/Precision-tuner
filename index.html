@@ -1024,9 +1024,9 @@
                     the pitch analyser, bypassing the speakers entirely. This means all 6 strings will read
                     <span class="cal-good">GREEN (&plusmn;0.1&cent;)</span> confirming the system is computing the
                     correct Railsback-adjusted frequencies for your A4 reference.<br>
-                    <span style="color:#aaaaaa;">Low-frequency tones (E2 &asymp;82 Hz, A2 &asymp;110 Hz) now get an
-                    automatic speaker boost to help tablet/phone speakers and microphones, but the sweep still uses
-                    internal digital detection for repeatable calibration accuracy.</span>
+                    <span style="color:#aaaaaa;">Low-frequency tones (E2 &asymp;82 Hz, A2 &asymp;110 Hz) now get a
+                    frequency-dependent speaker boost to counter equal-loudness rolloff on tablet/phone speakers, but
+                    the sweep still uses internal digital detection for repeatable calibration accuracy.</span>
                 </div>
             </div>
         </div>
@@ -2344,18 +2344,32 @@
         { label: 'E4', freq: 329.63, string: 5    }    // High E
     ];
 
-    // Device speakers roll off heavily below ~120 Hz, so E2/A2 reference tones
-    // override the speaker path to full scale for better audibility and mic pickup.
-    const LOW_FREQUENCY_SPEAKER_GAIN = Object.freeze({
-        E2: 1.0,
-        A2: 1.0
+    // Device speakers roll off heavily below ~150 Hz, especially near E2/A2.
+    // Apply a frequency-dependent boost so low strings remain audible enough
+    // for nearby microphones while keeping higher tones at the user-selected
+    // level. The multiplier intentionally exceeds 1.0 because the GainNode can
+    // pre-emphasize the signal before the speaker's own bass loss.
+    const CALIBRATION_SPEAKER_COMPENSATION = Object.freeze({
+        referenceFreq: 440.00,
+        minCompensatedFreq: 82.41,
+        equalLoudnessExponent: 0.50,
+        maxBoostMultiplier: 3.0
     });
 
     function getCalibrationSpeakerGain(label) {
-        if (Object.prototype.hasOwnProperty.call(LOW_FREQUENCY_SPEAKER_GAIN, label)) {
-            return LOW_FREQUENCY_SPEAKER_GAIN[label];
-        }
-        return calState.volume;
+        const tone = CAL_TONES.find(entry => entry.label === label);
+        if (!tone) return calState.volume;
+
+        const freq = Math.max(tone.freq, CALIBRATION_SPEAKER_COMPENSATION.minCompensatedFreq);
+        const ratio = CALIBRATION_SPEAKER_COMPENSATION.referenceFreq / freq;
+        const multiplier = (tone.freq >= CALIBRATION_SPEAKER_COMPENSATION.referenceFreq)
+            ? 1
+            : Math.min(
+                CALIBRATION_SPEAKER_COMPENSATION.maxBoostMultiplier,
+                Math.pow(ratio, CALIBRATION_SPEAKER_COMPENSATION.equalLoudnessExponent)
+            );
+
+        return calState.volume * multiplier;
     }
 
     // Calibration state — fully isolated from main tuner state
@@ -2561,6 +2575,36 @@
         if (d.length < 5) return null;
         const sorted = [...d].sort((a, b) => a - b);
         return sorted[Math.floor(sorted.length / 2)];
+    }
+
+    function calSimulateCollection(freq, frames = 60, sampleRate = 48000, fftSize = 4096) {
+        const detected = [];
+        let phase = 0;
+        const phaseStep = (2 * Math.PI * freq) / sampleRate;
+
+        for (let frame = 0; frame < frames; frame++) {
+            const buffer = new Float32Array(fftSize);
+            for (let i = 0; i < fftSize; i++) {
+                buffer[i] = 0.65 * Math.sin(phase);
+                phase += phaseStep;
+            }
+
+            const pitch = calDetectFrequency(buffer, sampleRate);
+            if (pitch !== null) detected.push(pitch);
+        }
+
+        if (detected.length < 5) {
+            return { collected: detected.length, median: null, centsError: null };
+        }
+
+        const sorted = [...detected].sort((a, b) => a - b);
+        const median = sorted[Math.floor(sorted.length / 2)];
+
+        return {
+            collected: detected.length,
+            median,
+            centsError: calculateCents(median, freq)
+        };
     }
 
     // ── Status display ─────────────────────────────────────────────
@@ -2934,6 +2978,8 @@
             calculateCents,
             detectPitch,
             calDetectFrequency,
+            getCalibrationSpeakerGain,
+            calSimulateCollection,
             enableLogs() {
                 state.debugLogging = true;
                 console.info('Precision Tuner debug logging enabled.');
