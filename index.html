@@ -2356,22 +2356,6 @@
         maxBoostMultiplier: 3.0
     });
 
-    function getCalibrationSpeakerGain(label) {
-        const tone = CAL_TONES.find(entry => entry.label === label);
-        if (!tone) return calState.volume;
-
-        const freq = Math.max(tone.freq, CALIBRATION_SPEAKER_COMPENSATION.minCompensatedFreq);
-        const ratio = CALIBRATION_SPEAKER_COMPENSATION.referenceFreq / freq;
-        const multiplier = (tone.freq >= CALIBRATION_SPEAKER_COMPENSATION.referenceFreq)
-            ? 1
-            : Math.min(
-                CALIBRATION_SPEAKER_COMPENSATION.maxBoostMultiplier,
-                Math.pow(ratio, CALIBRATION_SPEAKER_COMPENSATION.equalLoudnessExponent)
-            );
-
-        return calState.volume * multiplier;
-    }
-
     // Calibration state — fully isolated from main tuner state
     const calState = {
         panelOpen:       false,
@@ -2391,6 +2375,49 @@
         sweepResults:    [],
         sweepTimerId:    null
     };
+
+    function getCalibrationTone(labelOrFreq) {
+        if (typeof labelOrFreq === 'number' && Number.isFinite(labelOrFreq)) {
+            return { label: '', freq: labelOrFreq };
+        }
+        return CAL_TONES.find(entry => entry.label === labelOrFreq) || null;
+    }
+
+    function getCalibrationVolumeValue() {
+        const volumeInput = document.getElementById('cal-volume');
+        const domValue = volumeInput ? parseFloat(volumeInput.value) : NaN;
+        if (Number.isFinite(domValue)) {
+            calState.volume = Math.max(0, domValue);
+        }
+        return calState.volume;
+    }
+
+    function getCalibrationBoostMultiplier(freq) {
+        if (!Number.isFinite(freq) || freq <= 0) return 1;
+
+        const compensatedFreq = Math.max(
+            freq,
+            CALIBRATION_SPEAKER_COMPENSATION.minCompensatedFreq
+        );
+        const ratio = CALIBRATION_SPEAKER_COMPENSATION.referenceFreq / compensatedFreq;
+
+        return (freq >= CALIBRATION_SPEAKER_COMPENSATION.referenceFreq)
+            ? 1
+            : Math.min(
+                CALIBRATION_SPEAKER_COMPENSATION.maxBoostMultiplier,
+                Math.pow(ratio, CALIBRATION_SPEAKER_COMPENSATION.equalLoudnessExponent)
+            );
+    }
+
+    function getCalibrationSpeakerGain(labelOrFreq, volumeOverride = null) {
+        const tone = getCalibrationTone(labelOrFreq);
+        const baseVolume = Number.isFinite(volumeOverride)
+            ? Math.max(0, volumeOverride)
+            : getCalibrationVolumeValue();
+
+        if (!tone) return baseVolume;
+        return baseVolume * getCalibrationBoostMultiplier(tone.freq);
+    }
 
     // ── Audio helpers ────────────────────────────────────────────────
 
@@ -2577,21 +2604,37 @@
         return sorted[Math.floor(sorted.length / 2)];
     }
 
-    function calSimulateCollection(freq, frames = 60, sampleRate = 48000, fftSize = 4096) {
-        const detected = [];
-        let phase = 0;
+    function calGenerateSineBuffer(freq, sampleRate, fftSize, amplitude, phaseState) {
+        const buffer = new Float32Array(fftSize);
         const phaseStep = (2 * Math.PI * freq) / sampleRate;
+        const tau = 2 * Math.PI;
+        let phase = phaseState.value || 0;
+
+        for (let i = 0; i < fftSize; i++) {
+            buffer[i] = amplitude * Math.sin(phase);
+            phase += phaseStep;
+            if (phase >= tau) phase -= tau;
+        }
+
+        phaseState.value = phase;
+        return buffer;
+    }
+
+    function calCollectSyntheticSamples(freq, frames = 60, sampleRate = 48000, fftSize = 4096, amplitude = 0.65) {
+        const detected = [];
+        const phaseState = { value: 0 };
 
         for (let frame = 0; frame < frames; frame++) {
-            const buffer = new Float32Array(fftSize);
-            for (let i = 0; i < fftSize; i++) {
-                buffer[i] = 0.65 * Math.sin(phase);
-                phase += phaseStep;
-            }
-
+            const buffer = calGenerateSineBuffer(freq, sampleRate, fftSize, amplitude, phaseState);
             const pitch = calDetectFrequency(buffer, sampleRate);
             if (pitch !== null) detected.push(pitch);
         }
+
+        return detected;
+    }
+
+    function calSimulateCollection(freq, frames = 60, sampleRate = 48000, fftSize = 4096) {
+        const detected = calCollectSyntheticSamples(freq, frames, sampleRate, fftSize);
 
         if (detected.length < 5) {
             return { collected: detected.length, median: null, centsError: null };
@@ -2934,10 +2977,11 @@
     // Volume control
     document.getElementById('cal-volume').addEventListener('input', (e) => {
         calState.volume = parseFloat(e.target.value);
+        const volume = getCalibrationVolumeValue();
         document.getElementById('cal-volume-value').textContent =
-            Math.round(calState.volume * 100) + '%';
+            Math.round(volume * 100) + '%';
         if (calState.gainToSpeaker) {
-            calState.gainToSpeaker.gain.value = getCalibrationSpeakerGain(calState.currentLabel);
+            calState.gainToSpeaker.gain.value = getCalibrationSpeakerGain(calState.currentLabel, volume);
         }
     });
 
@@ -2978,8 +3022,10 @@
             calculateCents,
             detectPitch,
             calDetectFrequency,
+            getCalibrationBoostMultiplier,
             getCalibrationSpeakerGain,
             calSimulateCollection,
+            calCollectSyntheticSamples,
             enableLogs() {
                 state.debugLogging = true;
                 console.info('Precision Tuner debug logging enabled.');
