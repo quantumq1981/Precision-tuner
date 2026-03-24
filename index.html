@@ -2416,7 +2416,10 @@
             : getCalibrationVolumeValue();
 
         if (!tone) return baseVolume;
-        return baseVolume * getCalibrationBoostMultiplier(tone.freq);
+        // Cap at 1.0: the oscillator output is already at full amplitude (±1.0).
+        // Any gain above 1.0 clips the waveform, distorting zero crossings and
+        // breaking microphone-mode detection. Capping ensures max loudness without clipping.
+        return Math.min(1.0, baseVolume * getCalibrationBoostMultiplier(tone.freq));
     }
 
     // ── Audio helpers ────────────────────────────────────────────────
@@ -2683,6 +2686,15 @@
         const sampleCount = calState.collected.length;
         const isReady    = sampleCount >= 10;
 
+        // Show mic RMS in microphone mode so the user can diagnose whether the mic
+        // is picking up the reference tone (a low RMS means the tone is too quiet or
+        // the mic isn't active).
+        const micRmsLine = usingMic
+            ? `<div class="cal-metric">
+            <span class="cal-metric-label">MIC RMS:</span>
+            <span class="cal-metric-value ${state.rms > 0.005 ? 'cal-good' : 'cal-warn'}">${(state.rms * 100).toFixed(1)}% ${state.rms > 0.005 ? '&#9679; SIGNAL OK' : '&#9651; SIGNAL WEAK &mdash; IS VOLUME UP?'}</span>
+        </div>` : '';
+
         const genLine = `<div class="cal-metric">
             <span class="cal-metric-label">GENERATING:</span>
             <span class="cal-metric-value cal-blue">${calState.currentLabel} &mdash; ${calState.currentFreq.toFixed(2)} Hz &nbsp; (pure sine wave)</span>
@@ -2690,7 +2702,8 @@
         <div class="cal-metric">
             <span class="cal-metric-label">INPUT:</span>
             <span class="cal-metric-value">${modeLabel}</span>
-        </div>`;
+        </div>
+        ${micRmsLine}`;
 
         let body;
 
