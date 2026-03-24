@@ -187,17 +187,25 @@ function main() {
 
     console.log(`Speaker gains @ 50% volume → E2=${e2Gain.toFixed(3)} A2=${a2Gain.toFixed(3)} A4=${a4Gain.toFixed(3)}`);
 
-    assert(e2Gain > a2Gain, 'Expected E2 to receive more speaker gain than A2');
+    // Low-frequency tones are boosted toward 1.0 (max without clipping).
+    // E2 and A2 should both reach the 1.0 cap at 50% volume since their boost
+    // multipliers (≈2.3× and ≈2.0×) are high enough.
+    assert(e2Gain >= a2Gain, 'Expected E2 gain to be at least as high as A2');
     assert(a2Gain > a4Gain, 'Expected A2 to receive more speaker gain than A4');
-    assert(e2Gain >= 1.1, 'Expected E2 speaker gain to be strongly boosted');
-    assert(a2Gain >= 1.0, 'Expected A2 speaker gain to be strongly boosted');
+    // Gains must never exceed 1.0 — values above 1.0 clip the oscillator output,
+    // distorting zero crossings and breaking microphone-mode calibration detection.
+    assert(e2Gain <= 1.0, 'Expected E2 speaker gain to be capped at 1.0 (no clipping)');
+    assert(a2Gain <= 1.0, 'Expected A2 speaker gain to be capped at 1.0 (no clipping)');
+    assert(e2Gain === 1.0, 'Expected E2 speaker gain to reach the 1.0 cap at 50% volume');
+    assert(a2Gain === 1.0, 'Expected A2 speaker gain to reach the 1.0 cap at 50% volume');
 
     document.getElementById('cal-volume').value = '0.75';
     const boostedE2Gain = debugApi.getCalibrationSpeakerGain('E2');
     const boostedA4Gain = debugApi.getCalibrationSpeakerGain('A4');
     console.log(`Speaker gains @ 75% volume → E2=${boostedE2Gain.toFixed(3)} A4=${boostedA4Gain.toFixed(3)}`);
     assert(Math.abs(boostedA4Gain - 0.75) < 1e-9, 'Expected A4 gain to follow the calibration volume slider exactly');
-    assert(boostedE2Gain > e2Gain, 'Expected E2 gain to scale up when the calibration volume slider increases');
+    // E2 is already at the 1.0 cap at 50% volume, so increasing volume keeps it at 1.0
+    assert(boostedE2Gain <= 1.0, 'Expected E2 gain to remain capped at 1.0 at higher volume (no clipping)');
 
     const tones = [
         { label: 'E2', freq: 82.41 },
