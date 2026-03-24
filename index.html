@@ -699,9 +699,11 @@
         .lock-indicator.locked {
             opacity: 1;
             border-color: #00ff55;
-            background: #00ff0812;
-            box-shadow: 0 0 10px #00ff0830;
-            animation: lock-pulse 2s ease-in-out infinite;
+            background: #00ff0820;
+            box-shadow: 0 0 20px #00ff0860, 0 0 40px #00ff0828;
+            animation: lock-pulse 0.9s ease-in-out infinite;
+            font-size: 13px;
+            letter-spacing: 3px;
         }
         .lock-dot {
             width: 11px;
@@ -714,11 +716,21 @@
         }
         .lock-indicator.locked .lock-dot {
             background: #00ff55;
-            box-shadow: 0 0 6px #00ff55, 0 0 14px #00ff5580;
+            box-shadow: 0 0 8px #00ff55, 0 0 20px #00ff55cc;
         }
         @keyframes lock-pulse {
-            0%, 100% { box-shadow: 0 0 8px #00ff0828; }
-            50%       { box-shadow: 0 0 18px #00ff0855; }
+            0%, 100% { box-shadow: 0 0 16px #00ff0848, 0 0 32px #00ff0820; }
+            50%       { box-shadow: 0 0 28px #00ff0888, 0 0 52px #00ff0840; }
+        }
+        /* Next-target string button: pulsing yellow outline */
+        .string-btn.next-target {
+            border-color: #ffff00;
+            box-shadow: 0 0 8px #ffff0066;
+            animation: next-target-pulse 0.9s ease-in-out infinite;
+        }
+        @keyframes next-target-pulse {
+            0%, 100% { border-color: #ffcc00; box-shadow: 0 0 6px #ffcc0044; }
+            50%       { border-color: #ffffff; box-shadow: 0 0 14px #ffff00aa; }
         }
 
         .cal-info-box {
@@ -800,7 +812,7 @@
             <!-- Stable Lock Confirmation LED -->
             <div class="lock-indicator" id="lock-indicator">
                 <span class="lock-dot"></span>
-                <span>TUNE LOCKED &#10003;</span>
+                <span id="lock-label">TUNE LOCKED &#10003;</span>
             </div>
         </div>
 
@@ -1052,6 +1064,7 @@
     const state = {
         isListening: false,
         selectedString: 0,
+        autoAdvanceTimerId: null,
         currentFreq: 0,
         currentNote: '',
         cents: 0,
@@ -1713,11 +1726,20 @@
 
         _el.statusRms.textContent = (state.rms * 100).toFixed(1);
 
-        // Update stable lock LED
+        // Update stable lock LED and status label
         if (state.stableLocked) {
             _el.lockIndicator.classList.add('locked');
+            // Override status text with a bold "IN TUNE" during stable lock
+            _el.statusText.textContent = '\u2713 IN TUNE';
+            _el.statusText.style.color = '#00ff55';
+            // Show which string comes next in the lock label
+            const preset = tuningPresets[state.tuningPreset];
+            const nextIdx = (state.selectedString + 1) % preset.notes.length;
+            const nextNote = preset.notes[nextIdx] + preset.octaves[nextIdx];
+            _el.lockLabel.textContent = '\u2713 IN TUNE \u2014 ADVANCING TO ' + nextNote + '\u2026';
         } else {
             _el.lockIndicator.classList.remove('locked');
+            _el.lockLabel.textContent = 'TUNE LOCKED \u2713';
         }
     }
 
@@ -1795,6 +1817,10 @@
         const preset = tuningPresets[state.tuningPreset];
         const stretchOffsets = stretchProfiles[state.stretchProfile].offsets;
 
+        const nextTargetIdx = state.stableLocked
+            ? (state.selectedString + 1) % preset.notes.length
+            : -1;
+
         for (let i = 0; i < preset.notes.length; i++) {
             const note = preset.notes[i];
             const octave = preset.octaves[i];
@@ -1802,11 +1828,21 @@
             const stretch = stretchOffsets[i];
             const comp = state.useCompensation ? ((stringCompensation[state.guitarType] || [])[i] || 0) : 0;
             const isSelected = state.selectedString === i;
+            const isNextTarget = i === nextTargetIdx && !isSelected;
 
             const btn = document.createElement('button');
-            btn.className = 'string-btn' + (isSelected ? ' active' : '');
+            btn.className = 'string-btn' + (isSelected ? ' active' : '') + (isNextTarget ? ' next-target' : '');
             btn.onclick = () => {
                 state.selectedString = i;
+                // Cancel any pending auto-advance
+                if (state.autoAdvanceTimerId !== null) {
+                    clearTimeout(state.autoAdvanceTimerId);
+                    state.autoAdvanceTimerId = null;
+                }
+                // Reset stable lock so the new string starts fresh
+                state.stableLocked = false;
+                state.stableLockFrames = 0;
+                state.smoothingBuffer = [];
                 // Manual string selection disables auto-detect
                 if (state.autoDetect) {
                     state.autoDetect = false;
@@ -1831,6 +1867,23 @@
             btn.innerHTML = html;
             grid.appendChild(btn);
         }
+    }
+
+    // ================================================================
+    // AUTO-ADVANCE AFTER STABLE LOCK
+    // ================================================================
+
+    function advanceToNextString() {
+        state.autoAdvanceTimerId = null;
+        const preset = tuningPresets[state.tuningPreset];
+        state.selectedString = (state.selectedString + 1) % preset.notes.length;
+        // Reset stable lock and smoothing for the new string
+        state.stableLocked = false;
+        state.stableLockFrames = 0;
+        state.smoothingBuffer = [];
+        updateStringSelector();
+        updateTargetDisplay();
+        updateNoteLockFrequency();
     }
 
     // ================================================================
@@ -2009,6 +2062,10 @@
                     if (state.stableLockFrames >= STABLE_LOCK_FRAMES && !state.stableLocked) {
                         state.stableLocked = true;
                         playLockPing();
+                        // Schedule auto-advance to the next string after 0.8 s
+                        if (state.autoAdvanceTimerId === null) {
+                            state.autoAdvanceTimerId = setTimeout(advanceToNextString, 800);
+                        }
                     }
                 } else if (Math.abs(state.cents) > STABLE_LOCK_EXIT) {
                     // Only exit stable lock with some hysteresis to prevent flicker
@@ -2180,6 +2237,11 @@
         state.lastDebugLogMs   = 0;
         state.displayedCents   = 0;
         _lastRenderMs          = 0;
+        // Cancel any pending auto-advance
+        if (state.autoAdvanceTimerId !== null) {
+            clearTimeout(state.autoAdvanceTimerId);
+            state.autoAdvanceTimerId = null;
+        }
 
         // Clear the stable lock LED
         const lockEl = document.getElementById('lock-indicator');
@@ -3035,6 +3097,7 @@
         _el.precIndicator = document.getElementById('precision-indicator');
         _el.statusRms     = document.getElementById('status-rms');
         _el.lockIndicator = document.getElementById('lock-indicator');
+        _el.lockLabel     = document.getElementById('lock-label');
     }
 
     function init() {
