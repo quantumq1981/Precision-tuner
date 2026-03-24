@@ -1326,10 +1326,19 @@
         // ── Sub-harmonic preference: guard against E2/A2 octave errors ─
         // On low strings the 2nd harmonic can dominate the NSDF, causing the
         // algorithm to select its period (lag ≈ 291 for E2 at 48 kHz) rather
-        // than the fundamental (lag ≈ 582).  After the initial selection we
-        // look for a peak near 2× the chosen lag that also exceeds the
-        // threshold; if found, we prefer the lower-frequency candidate.
-        if (bestPeak) {
+        // than the fundamental (lag ≈ 582).
+        //
+        // GUARD: only apply when bestPeak is NOT the global maximum.  When
+        // the selected peak IS the global max it is already the fundamental —
+        // the NSDF also has a valid secondary peak at 2× the fundamental lag
+        // (the signal simply repeating a second time), and looking there would
+        // falsely halve the detected frequency (e.g. E4 at 330 Hz → ~165 Hz,
+        // which reads as ~1200 ¢ flat — "not even close").
+        //
+        // When a harmonic was selected first (smaller lag than the fundamental,
+        // but lower NSDF value than the global max), the true fundamental lies
+        // near 2× the selected lag and correcting is appropriate.
+        if (bestPeak && bestPeak.val < globalMax) {
             const doubleLag = bestPeak.pos * 2;
             for (const km of keyMaxima) {
                 if (km.pos > bestPeak.pos &&
