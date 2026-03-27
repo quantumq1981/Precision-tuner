@@ -771,7 +771,7 @@
         <!-- Header -->
         <div class="header">
             <h1>PRECISION TUNER</h1>
-            <div class="version">Guitar Stretch Edition v3.0 &bull; Railsback Stretch &bull; NSDF Pitch Detection &bull; Harmonic Strobe</div>
+            <div class="version">Guitar Stretch Edition v3.1 &bull; Railsback Stretch &bull; MPM (NSDF) Pitch Detection &bull; Harmonic Strobe</div>
         </div>
 
         <!-- System Status -->
@@ -1102,6 +1102,8 @@
         // Stable lock confirmation (held ±1.5¢ for ~1 second)
         stableLockFrames: 0,
         stableLocked: false,
+        lockIsolationFrames: 0,
+        pitchConfidence: 0,
         // Debug logging flag and throttle (main branch additions)
         debugLogging: false,
         lastDebugLogMs: 0,
@@ -1120,6 +1122,26 @@
     const _freqDomainBuf = new Float32Array(2049);          // analyser.getFloatFrequencyData  (fftSize/2 + 1)
     const _cumEBuf       = new Float64Array(4097);          // NSDF cumulative energy           (W + 1 max)
     const _nsdfBuf       = new Float32Array(2049);          // NSDF values                      (maxLag + 1 max)
+
+    // MPM / lock tuning parameters (kept in one object for easy field tuning)
+    const MPM_PARAMS = {
+        minFreqHz: 55,
+        maxFreqHz: 1400,
+        silenceFloorBase: 0.0008,
+        minClarity: 0.40,
+        selectRatio: 0.80,
+        octaveLookaheadTolerance: 0.12,
+        confidenceFloor: 0.45,
+        confidenceForStableLock: 0.84,
+        confidenceForIsolation: 0.78
+    };
+
+    const LOCK_ISOLATION = {
+        entryCents: 2.0,
+        exitCents: 3.0,
+        minMarginCents: 16,
+        holdFrames: 8
+    };
 
     // Cached DOM element references (populated in init — avoids repeated querySelector)
     const _el = {};
@@ -1236,9 +1258,10 @@
     // PITCH DETECTION - McLeod Pitch Method (NSDF)
     // ================================================================
 
-    function detectPitch(buffer) {
+    function detectPitchMPM(buffer, options = {}) {
         const n = buffer.length;
         const sr = state.audioContext ? state.audioContext.sampleRate : 48000;
+        const cfg = { ...MPM_PARAMS, ...options };
 
         // RMS energy check
         let rmsSum = 0;
@@ -1248,7 +1271,7 @@
         const rms = Math.sqrt(rmsSum / n);
         state.rms = rms;
 
-        const threshold = 0.0008 * state.sensitivity;
+        const threshold = cfg.silenceFloorBase * state.sensitivity;
         if (rms < threshold) return null;
 
         // Zero-crossing trim: find first rising zero crossing to reduce edge artifacts
@@ -1264,8 +1287,8 @@
         if (W < 256) return null;
 
         // Lag search bounds for guitar range (~60Hz to ~1400Hz covers open strings + high frets)
-        const minLag = Math.max(2, Math.floor(sr / 1400));
-        const maxLag = Math.min(Math.floor(W / 2), Math.floor(sr / 55));
+        const minLag = Math.max(2, Math.floor(sr / cfg.maxFreqHz));
+        const maxLag = Math.min(Math.floor(W / 2), Math.floor(sr / cfg.minFreqHz));
 
         // Precompute cumulative energy for efficient NSDF normalization
         // cumE[i] = sum of buf[j]^2 for j = i..W-1
@@ -1325,7 +1348,7 @@
         // ── Peak selection ────────────────────────────────────────────
         // Standard McLeod rule: first key maximum ≥ 0.8 × globalMax.
         // "First" = lowest lag = highest frequency in the candidate set.
-        const selectThreshold = 0.8 * globalMax;
+        const selectThreshold = cfg.selectRatio * globalMax;
         let bestPeak = null;
         for (const km of keyMaxima) {
             if (km.val >= selectThreshold) {
@@ -1334,7 +1357,7 @@
             }
         }
 
-        if (!bestPeak || bestPeak.val < 0.4) return null;
+        if (!bestPeak || bestPeak.val < cfg.minClarity) return null;
 
         // ── Sub-harmonic preference: guard against E2/A2 octave errors ─
         // On low strings the 2nd harmonic can dominate the NSDF, causing the
@@ -1355,8 +1378,8 @@
             const doubleLag = bestPeak.pos * 2;
             for (const km of keyMaxima) {
                 if (km.pos > bestPeak.pos &&
-                    km.pos >= doubleLag * 0.88 &&
-                    km.pos <= doubleLag * 1.12 &&
+                    km.pos >= doubleLag * (1 - cfg.octaveLookaheadTolerance) &&
+                    km.pos <= doubleLag * (1 + cfg.octaveLookaheadTolerance) &&
                     km.val >= selectThreshold) {
                     bestPeak = km;   // prefer the lower-octave candidate
                     break;
@@ -1366,6 +1389,9 @@
 
         // Parabolic interpolation for sub-sample accuracy
         const p = bestPeak.pos;
+        const peakRatio = globalMax > 0 ? (bestPeak.val / globalMax) : 0;
+        const confidenceBase = Math.max(0, Math.min(1, (bestPeak.val - cfg.confidenceFloor) / (1 - cfg.confidenceFloor)));
+        const confidence = Math.max(0, Math.min(1, confidenceBase * peakRatio));
         if (p > minLag && p < maxLag) {
             const y1 = nsdf[p - 1];
             const y2 = nsdf[p];
@@ -1373,11 +1399,25 @@
             const denom = 2 * (y1 - 2 * y2 + y3);
             if (Math.abs(denom) > 1e-10) {
                 const refinedLag = p + (y1 - y3) / denom;
-                return sr / refinedLag;
+                return {
+                    frequency: sr / refinedLag,
+                    confidence,
+                    clarity: bestPeak.val
+                };
             }
         }
 
-        return sr / p;
+        return {
+            frequency: sr / p,
+            confidence,
+            clarity: bestPeak.val
+        };
+    }
+
+    function detectPitch(buffer) {
+        const result = detectPitchMPM(buffer);
+        state.pitchConfidence = result ? result.confidence : 0;
+        return result ? result.frequency : null;
     }
 
     // ================================================================
@@ -1739,7 +1779,12 @@
             _el.lockLabel.textContent = '\u2713 IN TUNE \u2014 ADVANCING TO ' + nextNote + '\u2026';
         } else {
             _el.lockIndicator.classList.remove('locked');
-            _el.lockLabel.textContent = 'TUNE LOCKED \u2713';
+            if (state.lockIsolationFrames > 0) {
+                const pct = Math.round((state.lockIsolationFrames / LOCK_ISOLATION.holdFrames) * 100);
+                _el.lockLabel.textContent = `ISOLATING TARGET TONE \u2014 ${Math.min(100, pct)}%`;
+            } else {
+                _el.lockLabel.textContent = 'TUNE LOCKED \u2713';
+            }
         }
     }
 
@@ -1842,6 +1887,7 @@
                 // Reset stable lock so the new string starts fresh
                 state.stableLocked = false;
                 state.stableLockFrames = 0;
+                state.lockIsolationFrames = 0;
                 state.smoothingBuffer = [];
                 // Manual string selection disables auto-detect
                 if (state.autoDetect) {
@@ -1880,6 +1926,7 @@
         // Reset stable lock and smoothing for the new string
         state.stableLocked = false;
         state.stableLockFrames = 0;
+        state.lockIsolationFrames = 0;
         state.smoothingBuffer = [];
         updateStringSelector();
         updateTargetDisplay();
@@ -1943,6 +1990,31 @@
             state.autoDetectCandidate = nearest;
             state.autoDetectHoldFrames = 1;
         }
+    }
+
+    function getStringIsolationMetrics(detectedFreq) {
+        const preset = tuningPresets[state.tuningPreset];
+        let bestIndex = 0;
+        let bestAbsCents = Infinity;
+        let secondAbsCents = Infinity;
+
+        for (let i = 0; i < preset.notes.length; i++) {
+            const target = getTargetFrequency(i);
+            const cents = Math.abs(calculateCents(detectedFreq, target));
+            if (cents < bestAbsCents) {
+                secondAbsCents = bestAbsCents;
+                bestAbsCents = cents;
+                bestIndex = i;
+            } else if (cents < secondAbsCents) {
+                secondAbsCents = cents;
+            }
+        }
+
+        const marginCents = Number.isFinite(secondAbsCents)
+            ? (secondAbsCents - bestAbsCents)
+            : Infinity;
+
+        return { bestIndex, bestAbsCents, marginCents };
     }
 
     // ================================================================
@@ -2018,7 +2090,9 @@
         // _timeDomainBuf is pre-allocated — no GC allocation on this path.
         if (state.frameCounter % 2 === 0) {
             state.analyser.getFloatTimeDomainData(_timeDomainBuf);
-            const rawPitch = detectPitch(_timeDomainBuf);
+            const detection = detectPitchMPM(_timeDomainBuf);
+            state.pitchConfidence = detection ? detection.confidence : 0;
+            const rawPitch = detection ? detection.frequency : null;
             const smoothed = smoothPitch(rawPitch);
 
             if (smoothed) {
@@ -2027,6 +2101,7 @@
 
                 const targetFreq = getTargetFrequency(state.selectedString);
                 const centsOff = calculateCents(smoothed, targetFreq);
+                const isolation = getStringIsolationMetrics(smoothed);
 
                 state.currentFreq = smoothed;
                 state.cents = Math.round(centsOff * 10) / 10; // 0.1 cent resolution
@@ -2039,8 +2114,28 @@
                 const emaK = state.stableLocked ? 0.10 : 0.35;
                 state.displayedCents = state.displayedCents * (1 - emaK) + state.cents * emaK;
 
-                // ── Strobe lock snap (±2¢ zone, fires after 4 frames) ────
-                const isLocked = Math.abs(state.cents) <= 2.0;
+                // ── Deliberate tone isolation before lock acceptance ──────
+                // Requires: close to target, confidence above floor, and
+                // enough separation from neighbouring strings so a "grazing"
+                // pass over lock cannot trigger a false-positive.
+                const isolationQualified =
+                    isolation.bestIndex === state.selectedString &&
+                    Math.abs(state.cents) <= LOCK_ISOLATION.entryCents &&
+                    state.pitchConfidence >= MPM_PARAMS.confidenceForIsolation &&
+                    isolation.marginCents >= LOCK_ISOLATION.minMarginCents;
+
+                if (isolationQualified) {
+                    state.lockIsolationFrames = Math.min(LOCK_ISOLATION.holdFrames, state.lockIsolationFrames + 1);
+                } else if (Math.abs(state.cents) > LOCK_ISOLATION.exitCents ||
+                           state.pitchConfidence < (MPM_PARAMS.confidenceForIsolation - 0.08)) {
+                    state.lockIsolationFrames = 0;
+                } else {
+                    state.lockIsolationFrames = Math.max(0, state.lockIsolationFrames - 1);
+                }
+                const isolationReady = state.lockIsolationFrames >= LOCK_ISOLATION.holdFrames;
+
+                // ── Strobe lock snap (±2¢ zone + isolation gate) ─────────
+                const isLocked = Math.abs(state.cents) <= 2.0 && isolationReady;
                 if (isLocked) {
                     state.lockFrames++;
                     // Fire the "snap" flash the moment we've held lock for 4 frames
@@ -2056,7 +2151,9 @@
                 // ── Stable lock confirmation (±1.5¢ held for ~1 second) ──
                 // Provides a reliable "tuned" indicator with audio ping and
                 // green LED — far more stable than the instantaneous snap flash.
-                const inStableZone = Math.abs(state.cents) <= STABLE_LOCK_CENTS;
+                const inStableZone = Math.abs(state.cents) <= STABLE_LOCK_CENTS &&
+                                     isolationReady &&
+                                     state.pitchConfidence >= MPM_PARAMS.confidenceForStableLock;
                 if (inStableZone) {
                     state.stableLockFrames++;
                     if (state.stableLockFrames >= STABLE_LOCK_FRAMES && !state.stableLocked) {
@@ -2086,6 +2183,8 @@
                         note:        noteName,
                         cents:       (state.cents >= 0 ? '+' : '') + state.cents.toFixed(1) + '\u00A2',
                         rms:         state.rms.toFixed(5),
+                        confidence:  state.pitchConfidence.toFixed(3),
+                        isolate:     state.lockIsolationFrames + '/' + LOCK_ISOLATION.holdFrames,
                         a4:          state.a4Calibration + ' Hz',
                         stretch:     state.stretchProfile,
                         stableLock:  state.stableLocked,
@@ -2104,6 +2203,8 @@
                 state.prevLocked       = false;
                 state.stableLockFrames = 0;
                 state.stableLocked     = false;
+                state.lockIsolationFrames = 0;
+                state.pitchConfidence = 0;
                 // Gently return displayedCents toward centre when no signal
                 state.displayedCents  *= 0.92;
             }
@@ -2116,6 +2217,7 @@
             state.prevLocked       = false;
             state.stableLockFrames = 0;
             state.stableLocked     = false;
+            state.lockIsolationFrames = 0;
         }
 
         // Decay lock flash every render frame (60fps)
@@ -2190,6 +2292,8 @@
             _lastRenderMs           = 0;
             state.stableLockFrames  = 0;
             state.stableLocked      = false;
+            state.lockIsolationFrames = 0;
+            state.pitchConfidence   = 0;
             state.displayedCents    = 0;
 
             startBtn.textContent = '\u23F9 STOP';
@@ -2234,6 +2338,8 @@
         state.prevLocked       = false;
         state.stableLockFrames = 0;
         state.stableLocked     = false;
+        state.lockIsolationFrames = 0;
+        state.pitchConfidence = 0;
         state.lastDebugLogMs   = 0;
         state.displayedCents   = 0;
         _lastRenderMs          = 0;
@@ -3106,6 +3212,7 @@
             getTargetFrequency,
             calculateCents,
             detectPitch,
+            detectPitchMPM,
             calDetectFrequency,
             getCalibrationBoostMultiplier,
             getCalibrationSpeakerGain,
