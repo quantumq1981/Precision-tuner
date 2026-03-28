@@ -4,109 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Precision Tuner - Guitar Stretch Edition</title>
+    <title>Precision Strobe Tuner</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
             font-family: 'Courier New', monospace;
             background: #000;
             color: #00ff00;
-            padding: 15px;
             min-height: 100vh;
-            touch-action: manipulation;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px;
         }
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
+        .app {
+            width: 100%;
+            max-width: 480px;
         }
 
         /* Header */
-        .header {
+        h1 {
             text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #00ff00;
-            padding-bottom: 12px;
-        }
-
-        .header h1 {
-            font-size: 22px;
-            margin-bottom: 6px;
-            text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
-        }
-
-        .header .version {
-            font-size: 10px;
-            opacity: 0.7;
-        }
-
-        /* System Status */
-        .system-status {
-            background: #001a00;
-            border: 1px solid #00ff00;
-            padding: 10px 15px;
-            margin-bottom: 15px;
-            font-size: 11px;
-        }
-
-        .system-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 6px;
-        }
-
-        .system-grid .status-item {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .status-highlight {
-            color: #ffff00;
-            font-weight: bold;
-        }
-
-        /* Main Display */
-        .main-display {
-            background: #001a00;
-            border: 3px solid #00ff00;
-            padding: 20px;
-            text-align: center;
-            margin-bottom: 15px;
-            box-shadow: 0 0 20px #00ff0044;
-            transition: border-color 0.3s, box-shadow 0.3s;
-        }
-
-        .status-text {
             font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            text-shadow: 0 0 10px currentColor;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            text-shadow: 0 0 12px #00ff00;
+            margin-bottom: 4px;
+        }
+        .subtitle {
+            text-align: center;
+            font-size: 10px;
+            opacity: 0.5;
             letter-spacing: 2px;
+            margin-bottom: 16px;
         }
 
-        /* Canvas Strobe */
-        .strobe-wrapper {
+        /* Strobe circle */
+        .strobe-container {
             position: relative;
-            width: 280px;
-            height: 280px;
-            margin: 0 auto 15px;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto 12px;
         }
-
         #strobe-canvas {
-            width: 280px;
-            height: 280px;
             display: block;
+            border-radius: 50%;
         }
-
-        .strobe-note-overlay {
+        .strobe-overlay {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -114,3199 +60,751 @@
             text-align: center;
             pointer-events: none;
         }
-
-        .strobe-note-name {
-            font-size: 42px;
+        .note-name {
+            font-size: 52px;
             font-weight: bold;
-            text-shadow: 0 0 20px currentColor;
             line-height: 1;
+            text-shadow: 0 0 20px currentColor;
         }
-
-        .strobe-note-octave {
-            font-size: 18px;
+        .note-octave {
+            font-size: 22px;
             opacity: 0.8;
         }
-
-        .frequency-display {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 5px;
+        .play-hint {
+            font-size: 11px;
+            opacity: 0.4;
+            letter-spacing: 2px;
+            margin-top: 4px;
         }
 
-        .target-freq {
-            font-size: 11px;
-            opacity: 0.7;
+        /* Readout row */
+        .readout {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #001a00;
+            border: 1px solid #003300;
+            margin-bottom: 10px;
+        }
+        .readout-item { text-align: center; }
+        .readout-label { font-size: 9px; opacity: 0.5; letter-spacing: 1px; margin-bottom: 2px; }
+        .readout-value { font-size: 20px; font-weight: bold; }
+        .readout-value.freq { font-size: 16px; }
+
+        /* Cents bar */
+        .cents-bar-wrap {
+            position: relative;
+            height: 20px;
+            background: #001a00;
+            border: 1px solid #003300;
             margin-bottom: 12px;
         }
-
-        .cents-display {
-            font-size: 56px;
-            font-weight: bold;
-            text-shadow: 0 0 30px currentColor;
-            line-height: 1.1;
-        }
-
-        .cents-label {
-            font-size: 10px;
-            opacity: 0.5;
-            margin-bottom: 15px;
-        }
-
-        /* Precision Bar */
-        .precision-bar {
-            width: 100%;
-            height: 24px;
-            background: #001a00;
-            border: 1px solid #00ff0066;
-            position: relative;
-            margin-top: 10px;
-        }
-
-        .precision-ticks {
+        .cents-bar-center {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-        }
-
-        .precision-tick {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 1px;
-            background: #00ff0022;
-        }
-
-        .precision-tick.center {
-            background: #00ff0066;
+            left: 50%;
+            top: 0; bottom: 0;
             width: 2px;
+            background: #005500;
+            transform: translateX(-50%);
+        }
+        .cents-bar-ticks {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+        }
+        .cents-bar-ticks span {
+            position: absolute;
+            top: 25%; bottom: 25%;
+            width: 1px;
+            background: #002200;
+        }
+        .cents-needle {
+            position: absolute;
+            top: 2px; bottom: 2px;
+            width: 8px;
+            border-radius: 2px;
+            transform: translateX(-50%);
+            left: 50%;
+            transition: left 0.08s, background 0.08s;
+            box-shadow: 0 0 8px currentColor;
         }
 
-        .precision-indicator {
-            position: absolute;
-            top: 2px;
-            bottom: 2px;
-            width: 6px;
-            border-radius: 1px;
-            transform: translateX(-50%);
-            box-shadow: 0 0 8px currentColor;
-            transition: left 0.1s;
+        /* String buttons */
+        .string-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+            justify-content: center;
         }
+        .string-btn {
+            flex: 1;
+            padding: 10px 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            font-weight: bold;
+            background: #001a00;
+            color: #00aa00;
+            border: 1px solid #003300;
+            cursor: pointer;
+            text-align: center;
+            letter-spacing: 1px;
+            touch-action: manipulation;
+        }
+        .string-btn.active {
+            background: #003300;
+            color: #00ff00;
+            border-color: #00ff00;
+            box-shadow: 0 0 10px #00ff0044;
+        }
+        .string-btn .str-note { font-size: 15px; }
+        .string-btn .str-freq { font-size: 9px; opacity: 0.6; display: block; margin-top: 2px; }
 
         /* Controls */
         .controls {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
         }
-
         .btn {
-            padding: 16px 10px;
-            font-size: 14px;
+            padding: 14px 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
             font-weight: bold;
+            letter-spacing: 1px;
             border: none;
             cursor: pointer;
-            font-family: 'Courier New', monospace;
             text-transform: uppercase;
             touch-action: manipulation;
-            letter-spacing: 1px;
         }
-
-        .btn-start {
-            background: #00ff00;
-            color: #000;
-            box-shadow: 0 0 15px #00ff0066;
+        .btn-start  { background: #00ff00; color: #000; box-shadow: 0 0 15px #00ff0055; }
+        .btn-stop   { background: #cc0000; color: #fff; box-shadow: 0 0 15px #cc000055; }
+        .btn-toggle {
+            background: #001a00;
+            color: #00aa00;
+            border: 2px solid #003300;
         }
-
-        .btn-stop {
-            background: #ff0000;
-            color: #fff;
-            box-shadow: 0 0 15px #ff000066;
-        }
-
-        .btn-notelock {
-            background: #002200;
-            color: #00ff00;
-            border: 2px solid #006600;
-        }
-
-        .btn-notelock.active {
-            background: #004400;
+        .btn-toggle.active {
+            background: #003300;
             color: #00ffaa;
             border-color: #00ffaa;
-            box-shadow: 0 0 15px #00ffaa66;
+            box-shadow: 0 0 10px #00ffaa44;
         }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-        .btn-settings {
-            background: #002200;
-            color: #00ff00;
-            border: 2px solid #006600;
-        }
-
-        .btn-calibrate {
-            background: #001a33;
-            color: #00aaff;
-            border: 2px solid #003366;
-        }
-
-        .btn-calibrate.active {
-            background: #003366;
-            color: #00ddff;
-            border-color: #00aaff;
-            box-shadow: 0 0 15px #00aaff66;
-        }
-
-        .btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        /* Error Box */
-        .error-box {
-            background: #330000;
-            border: 2px solid #ff0000;
-            padding: 12px;
-            color: #ff0000;
-            margin-bottom: 15px;
-            text-align: center;
-            font-size: 12px;
-        }
-
-        /* Settings Panel */
+        /* Settings panel */
         .settings-panel {
             background: #001a00;
-            border: 2px solid #00ff00;
-            padding: 20px;
-            margin-bottom: 15px;
+            border: 1px solid #003300;
+            padding: 14px;
+            margin-bottom: 12px;
             display: none;
         }
-
-        .settings-panel.active {
-            display: block;
+        .settings-panel.open { display: block; }
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 12px;
         }
-
-        .settings-panel h3 {
-            margin-top: 0;
-            border-bottom: 1px solid #00ff00;
-            padding-bottom: 8px;
-            margin-bottom: 15px;
-            font-size: 14px;
+        .setting-row label { opacity: 0.8; }
+        .setting-row input[type=range] {
+            width: 130px;
+            accent-color: #00ff00;
         }
-
-        .setting-group {
-            margin-bottom: 14px;
-        }
-
-        .setting-label {
-            color: #00ff00;
-            display: block;
-            margin-bottom: 4px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-        .setting-hint {
-            font-size: 9px;
-            opacity: 0.6;
-            margin-top: 3px;
-        }
-
-        .hint-inline {
-            display: inline-block;
-            margin-left: 6px;
-            padding: 1px 5px;
-            border: 1px solid #00ff0044;
-            border-radius: 10px;
-            font-size: 9px;
-            color: #aaffaa;
-            cursor: help;
-        }
-
-        select, input[type="range"] {
-            width: 100%;
+        .setting-row input[type=number] {
+            width: 70px;
             background: #000;
             color: #00ff00;
-            border: 1px solid #00ff00;
-            padding: 8px;
+            border: 1px solid #003300;
+            padding: 4px;
             font-family: 'Courier New', monospace;
             font-size: 12px;
-        }
-
-        input[type="range"] {
-            accent-color: #00ff00;
-            padding: 4px 0;
-        }
-
-        .checkbox-label {
-            color: #00ff00;
-            display: flex;
-            align-items: center;
-            font-size: 11px;
-            cursor: pointer;
-        }
-
-        input[type="checkbox"] {
-            margin-right: 8px;
-            accent-color: #00ff00;
-        }
-
-        /* Stretch Profile Highlight */
-        .stretch-section {
-            background: #002200;
-            border: 1px solid #00ff0044;
-            padding: 12px;
-            margin-bottom: 14px;
-        }
-
-        .stretch-section .setting-label {
-            color: #ffff00;
-        }
-
-        .stretch-offsets {
-            font-size: 10px;
-            margin-top: 6px;
-            color: #aaffaa;
-            line-height: 1.6;
-        }
-
-        .stretch-offsets span {
-            display: inline-block;
-            margin-right: 8px;
-            padding: 2px 5px;
-            border: 1px solid #00ff0033;
-            background: #001100;
-        }
-
-        /* String Selector */
-        .string-selector {
-            background: #001a00;
-            border: 2px solid #00ff00;
-            padding: 15px;
-        }
-
-        .string-selector-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            border-bottom: 1px solid #00ff00;
-            padding-bottom: 8px;
-        }
-
-        .string-selector-header h3 {
-            margin: 0;
-            font-size: 14px;
-        }
-
-        .btn-auto {
-            padding: 6px 14px;
-            font-size: 11px;
-            font-weight: bold;
-            font-family: 'Courier New', monospace;
-            border: 2px solid #006600;
-            background: #002200;
-            color: #00ff00;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .btn-auto.active {
-            background: #00aaff;
-            color: #000;
-            border-color: #00aaff;
-            box-shadow: 0 0 12px #00aaff66;
-        }
-
-        .string-btn.auto-matched {
-            border-color: #00aaff;
-            box-shadow: 0 0 10px #00aaff44;
-        }
-
-        .string-btn.active.auto-matched {
-            background: #00aaff;
-            border-color: #00aaff;
-            box-shadow: 0 0 12px #00aaff88;
-        }
-
-        .string-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 8px;
-        }
-
-        .string-btn {
-            padding: 12px 6px;
-            background: #001a00;
-            color: #00ff00;
-            border: 2px solid #006600;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            font-weight: bold;
             text-align: center;
-            transition: all 0.2s;
-            touch-action: manipulation;
         }
+        .setting-val { min-width: 40px; text-align: right; opacity: 0.8; }
 
-        .string-btn.active {
-            background: #00ff00;
-            color: #000;
-            border-color: #00ff00;
-            box-shadow: 0 0 12px #00ff0088;
-        }
-
-        .string-note {
-            font-size: 20px;
-            margin-bottom: 3px;
-        }
-
-        .string-freq {
-            font-size: 9px;
-            margin-top: 3px;
-            opacity: 0.7;
-        }
-
-        .string-stretch {
-            font-size: 8px;
-            margin-top: 2px;
-            color: #ffff00;
-            opacity: 0.8;
-        }
-
-        .string-comp {
-            font-size: 8px;
-            margin-top: 1px;
-            opacity: 0.5;
-        }
-
-        .info-text {
-            margin-top: 12px;
-            color: #00ff00;
+        /* Status message */
+        .status-msg {
+            text-align: center;
+            font-size: 11px;
             opacity: 0.6;
-            font-size: 10px;
-            line-height: 1.5;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            min-height: 16px;
         }
 
-        /* ================================================================
-           CALIBRATION PANEL
-           ================================================================ */
-
-        .calibration-panel {
-            background: #000d1a;
-            border: 2px solid #00aaff;
-            padding: 20px;
-            margin-bottom: 15px;
+        /* Permissions error */
+        .error-box {
+            background: #1a0000;
+            border: 1px solid #660000;
+            color: #ff4444;
+            padding: 10px;
+            font-size: 11px;
+            text-align: center;
+            margin-bottom: 10px;
             display: none;
         }
-
-        .calibration-panel.active {
-            display: block;
-        }
-
-        .calibration-panel h3 {
-            color: #00aaff;
-            margin-top: 0;
-            border-bottom: 1px solid #00aaff;
-            padding-bottom: 8px;
-            margin-bottom: 15px;
-            font-size: 14px;
-        }
-
-        .cal-section {
-            background: #00080f;
-            border: 1px solid #00aaff33;
-            padding: 12px;
-            margin-bottom: 14px;
-        }
-
-        .cal-section-title {
-            color: #00aaff;
-            font-size: 11px;
-            font-weight: bold;
-            margin-bottom: 8px;
-            letter-spacing: 1px;
-        }
-
-        .tone-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-
-        .tone-btn {
-            padding: 10px 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 10px;
-            font-weight: bold;
-            background: #001a33;
-            color: #00aaff;
-            border: 2px solid #003366;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s;
-            touch-action: manipulation;
-        }
-
-        .tone-btn.ref-a4 {
-            background: #1a1500;
-            color: #ffff00;
-            border-color: #666600;
-        }
-
-        .tone-btn:hover { opacity: 0.85; }
-
-        .tone-btn.active {
-            background: #00aaff;
-            color: #000;
-            border-color: #00ddff;
-            box-shadow: 0 0 10px #00aaff88;
-        }
-
-        .tone-btn.ref-a4.active {
-            background: #ffff00;
-            color: #000;
-            border-color: #ffff00;
-            box-shadow: 0 0 10px #ffff0088;
-        }
-
-        .cal-status-display {
-            background: #000810;
-            border: 1px solid #00aaff44;
-            padding: 10px 12px;
-            font-size: 11px;
-            line-height: 1.9;
-            margin-bottom: 8px;
-            min-height: 72px;
-        }
-
-        .cal-metric {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .cal-metric-label { opacity: 0.65; font-size: 10px; }
-        .cal-metric-value { font-weight: bold; }
-        .cal-good  { color: #00ff00; }
-        .cal-warn  { color: #ffff00; }
-        .cal-bad   { color: #ff4400; }
-        .cal-blue  { color: #00aaff; }
-
-        .cal-btn {
-            width: 100%;
-            padding: 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 6px;
-        }
-
-        .cal-btn-auto {
-            background: #003344;
-            color: #00aaff;
-            border: 2px solid #00aaff;
-        }
-
-        .cal-btn-auto:hover:not(:disabled) { background: #004455; }
-
-        .cal-btn-auto:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .cal-btn-sweep {
-            background: #1a1500;
-            color: #ffff00;
-            border: 2px solid #666600;
-        }
-
-        .cal-btn-sweep:hover:not(:disabled) { background: #252000; }
-        .cal-btn-sweep:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .cal-btn-stop {
-            background: #1a0000;
-            color: #ff4400;
-            border: 2px solid #660000;
-        }
-
-        .cal-btn-stop:hover { background: #220000; }
-
-        .cal-message {
-            padding: 6px 10px;
-            font-size: 10px;
-            border: 1px solid currentColor;
-            margin-top: 4px;
-            background: #001a00;
-        }
-
-        .cal-volume-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
-            font-size: 10px;
-        }
-
-        .cal-volume-row label { white-space: nowrap; min-width: 90px; }
-
-        .stretch-cal-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 5px;
-            font-size: 9px;
-            margin-top: 8px;
-        }
-
-        .stretch-cal-item {
-            border: 1px solid #00aaff22;
-            padding: 7px 5px;
-            text-align: center;
-            background: #00050a;
-        }
-
-        .stretch-cal-item .sci-note   { font-size: 15px; font-weight: bold; color: #00aaff; }
-        .stretch-cal-item .sci-target { color: #888; margin-top: 2px; }
-        .stretch-cal-item .sci-det    { margin-top: 2px; font-weight: bold; }
-        .stretch-cal-item .sci-dev    { margin-top: 1px; font-weight: bold; }
-
-        /* ── Stable Lock Indicator ────────────────────────────────── */
-        .lock-indicator {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 10px;
-            padding: 7px 20px;
-            border-radius: 20px;
-            border: 1px solid #00440044;
-            background: transparent;
-            opacity: 0.25;
-            transition: opacity 0.4s, border-color 0.4s, background 0.4s, box-shadow 0.4s;
-            font-size: 11px;
-            letter-spacing: 2.5px;
-            color: #00cc44;
-            font-weight: bold;
-            user-select: none;
-            pointer-events: none;
-        }
-        .lock-indicator.locked {
-            opacity: 1;
-            border-color: #00ff55;
-            background: #00ff0820;
-            box-shadow: 0 0 20px #00ff0860, 0 0 40px #00ff0828;
-            animation: lock-pulse 0.9s ease-in-out infinite;
-            font-size: 13px;
-            letter-spacing: 3px;
-        }
-        .lock-dot {
-            width: 11px;
-            height: 11px;
-            border-radius: 50%;
-            background: #00330022;
-            border: 1px solid #00aa44;
-            transition: background 0.3s, box-shadow 0.3s;
-            flex-shrink: 0;
-        }
-        .lock-indicator.locked .lock-dot {
-            background: #00ff55;
-            box-shadow: 0 0 8px #00ff55, 0 0 20px #00ff55cc;
-        }
-        @keyframes lock-pulse {
-            0%, 100% { box-shadow: 0 0 16px #00ff0848, 0 0 32px #00ff0820; }
-            50%       { box-shadow: 0 0 28px #00ff0888, 0 0 52px #00ff0840; }
-        }
-        /* Next-target string button: pulsing yellow outline */
-        .string-btn.next-target {
-            border-color: #ffff00;
-            box-shadow: 0 0 8px #ffff0066;
-            animation: next-target-pulse 0.9s ease-in-out infinite;
-        }
-        @keyframes next-target-pulse {
-            0%, 100% { border-color: #ffcc00; box-shadow: 0 0 6px #ffcc0044; }
-            50%       { border-color: #ffffff; box-shadow: 0 0 14px #ffff00aa; }
-        }
-
-        .cal-info-box {
-            background: #001400;
-            border: 1px solid #00aa0044;
-            padding: 8px 10px;
-            font-size: 9px;
-            line-height: 1.6;
-            color: #aaffaa;
-            margin-top: 8px;
-        }
-
-        @media (max-width: 600px) {
-            .tone-grid { grid-template-columns: repeat(4, 1fr); }
-            .stretch-cal-grid { grid-template-columns: repeat(2, 1fr); }
-            .tone-btn,
-            .string-btn,
-            .btn-auto { min-height: 54px; }
-        }
-
-        /* Responsive */
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-            .header h1 { font-size: 16px; }
-            .system-grid { grid-template-columns: 1fr 1fr; font-size: 10px; }
-            .strobe-wrapper { width: 220px; height: 220px; }
-            #strobe-canvas { width: 220px; height: 220px; }
-            .strobe-note-name { font-size: 32px; }
-            .cents-display { font-size: 42px; }
-            .frequency-display { font-size: 22px; }
-            .string-grid { grid-template-columns: repeat(3, 1fr); }
-            .controls { grid-template-columns: 1fr 1fr; }
-        }
+        .error-box.show { display: block; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>PRECISION TUNER</h1>
-            <div class="version">Guitar Stretch Edition v3.1 &bull; Railsback Stretch &bull; MPM (NSDF) Pitch Detection &bull; Harmonic Strobe</div>
-        </div>
+<div class="app">
+    <h1>Strobe Tuner</h1>
+    <div class="subtitle">Precision Chromatic &bull; Guitar Edition</div>
 
-        <!-- System Status -->
-        <div class="system-status">
-            <div class="system-grid">
-                <div class="status-item">TUNING: <span id="status-tuning">Standard</span></div>
-                <div class="status-item">STRETCH: <span id="status-stretch" class="status-highlight">OFF</span></div>
-                <div class="status-item">A4: <span id="status-a4">440.0</span> Hz</div>
-                <div class="status-item" title="Pitch capture mode. AUTO follows the nearest string, LOCKED uses Note-Lock, MANUAL stays on the selected string.">DETECT: <span id="status-detect" class="status-highlight">AUTO</span></div>
-                <div class="status-item" title="Intonation compensation uses fixed per-string presets for the selected guitar type; it does not measure your actual string gauge or setup.">COMP: <span id="status-comp">ON</span></div>
-                <div class="status-item" title="Live RMS input level. Higher values mean stronger incoming audio at the detector input.">RMS: <span id="status-rms">0.0</span>%</div>
-            </div>
-        </div>
+    <div class="error-box" id="error-box">
+        Microphone access denied. Please allow microphone access and reload.
+    </div>
 
-        <!-- Main Display -->
-        <div class="main-display" id="main-display">
-            <div class="status-text" id="status-text">READY</div>
-
-            <!-- Canvas Strobe -->
-            <div class="strobe-wrapper">
-                <canvas id="strobe-canvas" width="560" height="560"></canvas>
-                <div class="strobe-note-overlay" id="strobe-note-overlay">
-                    <div class="strobe-note-name" id="strobe-note">E</div>
-                    <div class="strobe-note-octave" id="strobe-octave">2</div>
-                </div>
-            </div>
-
-            <div class="frequency-display" id="freq-display">0.00 Hz</div>
-            <div class="target-freq" id="target-freq">Target: 82.41 Hz</div>
-            <div class="cents-display" id="cents-display">0.0&cent;</div>
-            <div class="cents-label">CENTS DEVIATION</div>
-
-            <div class="precision-bar">
-                <div class="precision-ticks" id="precision-ticks"></div>
-                <div class="precision-indicator" id="precision-indicator"></div>
-            </div>
-
-            <!-- Stable Lock Confirmation LED -->
-            <div class="lock-indicator" id="lock-indicator">
-                <span class="lock-dot"></span>
-                <span id="lock-label">TUNE LOCKED &#10003;</span>
-            </div>
-        </div>
-
-        <!-- Controls -->
-        <div class="controls">
-            <button class="btn btn-start" id="start-btn">&#9654; START</button>
-            <button class="btn btn-notelock" id="notelock-btn">NOTE-LOCK</button>
-            <button class="btn btn-settings" id="settings-btn">SETTINGS</button>
-            <button class="btn btn-calibrate" id="cal-btn">CALIBRATE</button>
-        </div>
-
-        <!-- Error Display -->
-        <div class="error-box" id="error-box" style="display: none;"></div>
-
-        <!-- Settings Panel -->
-        <div class="settings-panel" id="settings-panel">
-            <h3>PRECISION SETTINGS</h3>
-
-            <!-- Tuning Preset -->
-            <div class="setting-group">
-                <label class="setting-label">Tuning Preset:</label>
-                <select id="tuning-preset">
-                    <option value="standard">Standard (E A D G B E)</option>
-                    <option value="dropD">Drop D (D A D G B E)</option>
-                    <option value="halfStepDown">Half Step Down (Eb Ab Db Gb Bb Eb)</option>
-                    <option value="wholeStepDown">Whole Step Down (D G C F A D)</option>
-                    <option value="dadgad">DADGAD (D A D G A D)</option>
-                    <option value="openG">Open G (D G D G B D)</option>
-                    <option value="openD">Open D (D A D F# A D)</option>
-                </select>
-            </div>
-
-            <!-- Stretch Profile - PROMINENT -->
-            <div class="stretch-section">
-                <label class="setting-label">Stretch Profile (Railsback Curve):</label>
-                <select id="stretch-profile">
-                    <option value="off">Off - Pure Equal Temperament</option>
-                    <option value="light">Light Stretch</option>
-                    <option value="standard">Standard Stretch (StroboPro Match)</option>
-                    <option value="heavy">Heavy Stretch</option>
-                </select>
-                <div class="stretch-offsets" id="stretch-offsets-display">
-                    No stretch applied - pure 12-TET frequencies
-                </div>
-                <div class="setting-hint">
-                    Standard matches StroboPro's Guitar/Stretched Tuning preset exactly.
-                    Compensates for string inharmonicity using the Railsback curve.
-                </div>
-            </div>
-
-            <!-- Guitar Type -->
-            <div class="setting-group">
-                <label class="setting-label">Guitar Type (Intonation Compensation):</label>
-                <select id="guitar-type">
-                    <option value="electric">Electric Guitar</option>
-                    <option value="acoustic">Acoustic Guitar</option>
-                    <option value="classical">Classical Guitar</option>
-                </select>
-                <div class="setting-hint">Uses fixed per-string compensation presets for the selected guitar type. It does not measure your actual string gauge or action height.</div>
-            </div>
-
-            <!-- A4 Calibration -->
-            <div class="setting-group">
-                <label class="setting-label">A4 Reference: <span id="a4-value">440.0</span> Hz</label>
-                <input type="range" id="a4-calibration" min="430" max="450" step="0.1" value="440">
-                <div class="setting-hint">Standard: 440 Hz | Concert: 442 Hz | Baroque: 415 Hz | Verdi: 432 Hz</div>
-            </div>
-
-            <!-- Temperament -->
-            <div class="setting-group">
-                <label class="setting-label">Temperament:</label>
-                <select id="temperament">
-                    <option value="equal">Equal Temperament (12-TET)</option>
-                    <option value="just">Just Intonation (Key of C)</option>
-                    <option value="pythagorean">Pythagorean</option>
-                    <option value="meantone">Quarter-Comma Meantone</option>
-                    <option value="werckmeister">Werckmeister III</option>
-                </select>
-            </div>
-
-            <!-- Compensation Toggle -->
-            <div class="setting-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="compensation" checked>
-                    Enable Intonation Compensation
-                </label>
-                <div class="setting-hint">Applies fixed per-string cent offsets for the selected guitar type to counter typical fretting sharpness. It does not detect your actual string gauge or setup.</div>
-            </div>
-
-            <!-- Sensitivity -->
-            <div class="setting-group">
-                <label class="setting-label">Detection Sensitivity: <span id="sensitivity-value">75</span>% <span class="hint-inline" title="Lower values ignore more room noise. Higher values react to quieter notes, but can become more jittery in noisy spaces.">DETECT?</span></label>
-                <input type="range" id="sensitivity" min="0.2" max="1.0" step="0.05" value="0.75">
-                <div class="setting-hint">Lower = ignores more background noise. Higher = more responsive in quiet environments.</div>
-            </div>
-        </div>
-
-        <!-- Calibration Panel -->
-        <div class="calibration-panel" id="calibration-panel">
-            <h3>&#9112; CALIBRATION LAB &mdash; Reference Tone Generator &amp; Verification</h3>
-
-            <!-- Section 1: Reference Tone Generator -->
-            <div class="cal-section">
-                <div class="cal-section-title">&#9654; STEP 1 &mdash; REFERENCE TONE GENERATOR (Pure Sine Wave)</div>
-                <div class="setting-hint" style="margin-bottom:10px;">
-                    Click a frequency to generate a pure sine wave internally. The tuner routes the signal directly to
-                    its pitch detector for 100% accurate calibration &mdash; no microphone or external device required.
-                    Tone also plays through your speakers for audible reference.
-                </div>
-
-                <div class="cal-volume-row">
-                    <label>VOLUME: <span id="cal-volume-value">50%</span></label>
-                    <input type="range" id="cal-volume" min="0" max="1" step="0.05" value="0.5" style="flex:1;">
-                    <span style="opacity:0.5;font-size:9px;">Keep moderate to avoid clipping</span>
-                </div>
-
-                <div class="tone-grid">
-                    <button class="tone-btn ref-a4" id="tone-btn-A4">
-                        <div style="font-size:15px;margin-bottom:3px;">A4</div>
-                        <div>440.00 Hz</div>
-                        <div style="font-size:8px;margin-top:2px;opacity:0.8;">&#9733; REFERENCE</div>
-                    </button>
-                    <button class="tone-btn" id="tone-btn-E2">
-                        <div style="font-size:15px;margin-bottom:3px;">E2</div>
-                        <div>82.41 Hz</div>
-                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">LOW E</div>
-                    </button>
-                    <button class="tone-btn" id="tone-btn-A2">
-                        <div style="font-size:15px;margin-bottom:3px;">A2</div>
-                        <div>110.00 Hz</div>
-                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">A STRING</div>
-                    </button>
-                    <button class="tone-btn" id="tone-btn-D3">
-                        <div style="font-size:15px;margin-bottom:3px;">D3</div>
-                        <div>146.83 Hz</div>
-                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">D STRING</div>
-                    </button>
-                    <button class="tone-btn" id="tone-btn-G3">
-                        <div style="font-size:15px;margin-bottom:3px;">G3</div>
-                        <div>196.00 Hz</div>
-                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">G STRING</div>
-                    </button>
-                    <button class="tone-btn" id="tone-btn-B3">
-                        <div style="font-size:15px;margin-bottom:3px;">B3</div>
-                        <div>246.94 Hz</div>
-                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">B STRING</div>
-                    </button>
-                    <button class="tone-btn" id="tone-btn-E4">
-                        <div style="font-size:15px;margin-bottom:3px;">E4</div>
-                        <div>329.63 Hz</div>
-                        <div style="font-size:8px;margin-top:2px;opacity:0.7;">HIGH E</div>
-                    </button>
-                </div>
-
-                <button class="cal-btn cal-btn-stop" id="cal-stop-btn">&#9632; STOP TONE</button>
-            </div>
-
-            <!-- Section 2: Calibration Status & Auto-Calibrate -->
-            <div class="cal-section">
-                <div class="cal-section-title">&#9111; STEP 2 &mdash; CALIBRATION STATUS &amp; A4 AUTO-CALIBRATE</div>
-                <div class="cal-status-display" id="cal-status-display">
-                    <div style="opacity:0.5;text-align:center;padding:14px 0;">
-                        Select a reference tone above to begin calibration
-                    </div>
-                </div>
-                <div class="cal-message" id="cal-message" style="display:none;"></div>
-                <button class="cal-btn cal-btn-auto" id="cal-auto-btn" disabled>
-                    &#9650; AUTO-CALIBRATE A4 REFERENCE FREQUENCY
-                </button>
-                <div class="cal-info-box">
-                    <strong style="color:#00aaff;">How it works:</strong>
-                    <ol style="margin:6px 0 0 14px;padding:0;line-height:1.8;">
-                        <li><strong>Start the tuner</strong> (&#9654; START button) to activate the microphone.</li>
-                        <li>Click <strong>A4</strong> above to generate the reference sine wave through your speakers.</li>
-                        <li>The microphone detects the tone and the status shows <span style="color:#00ff88;">&#9679; MICROPHONE MODE</span> with a live deviation reading.</li>
-                        <li>If deviation &gt; 0.5&cent;, click <em>AUTO-CALIBRATE</em> to adjust the A4 reference.</li>
-                        <li>Replay A4 to confirm the status reads <span class="cal-good">CALIBRATED &#10003;</span>.</li>
-                    </ol>
-                    <div style="margin-top:6px;color:#aaaaaa;">
-                        Without the microphone active the panel shows <span style="color:#ffaa00;">&#9632; INTERNAL MODE</span>,
-                        which verifies signal path integrity only and always reads ~0&cent; deviation.
-                    </div>
-                </div>
-            </div>
-
-            <!-- Section 3: Stretch Sweetening Calibration -->
-            <div class="cal-section">
-                <div class="cal-section-title">&#9835; STEP 3 &mdash; STRETCH SWEETENING CALIBRATION SWEEP</div>
-                <div class="setting-hint" style="margin-bottom:8px;">
-                    After establishing the A4 baseline, run a full sweep to verify all 6 string target frequencies
-                    (including the active stretch profile offsets) are detected correctly. This confirms the
-                    Railsback curve and the selected intonation compensation preset are aligned with your A4 calibration.
-                </div>
-                <div style="font-size:9px;margin-bottom:10px;line-height:1.7;">
-                    Active stretch: <span id="cal-stretch-name" style="color:#ffff00;font-weight:bold;">OFF</span>
-                    &nbsp;&bull;&nbsp;
-                    Guitar type: <span id="cal-guitar-name" style="color:#aaffaa;font-weight:bold;">Electric</span>
-                    &nbsp;&bull;&nbsp;
-                    A4 reference: <span id="cal-a4-display" style="color:#00aaff;font-weight:bold;">440.0 Hz</span>
-                </div>
-
-                <button class="cal-btn cal-btn-sweep" id="cal-sweep-btn">
-                    &#9654;&#9654; RUN STRETCH CALIBRATION SWEEP (ALL 6 STRINGS)
-                </button>
-
-                <div id="cal-sweep-progress" style="display:none;font-size:10px;margin-top:6px;color:#ffff00;text-align:center;"></div>
-
-                <div class="stretch-cal-grid" id="stretch-cal-results" style="display:none;margin-top:10px;"></div>
-
-                <div class="cal-info-box" style="margin-top:8px;">
-                    <strong style="color:#ffff00;">Tolerance:</strong>
-                    <span class="cal-good">GREEN = &plusmn;1&cent;</span> (calibrated) &nbsp;
-                    <span class="cal-warn">YELLOW = &plusmn;1&ndash;3&cent;</span> (acceptable) &nbsp;
-                    <span class="cal-bad">RED = &gt;&plusmn;3&cent;</span> (re-calibrate A4 or adjust stretch profile)<br>
-                    If strings show consistent directional offset, use <em>AUTO-CALIBRATE</em> in Step 2 to correct A4,
-                    then re-run the sweep. String-specific offsets can be fine-tuned via the Stretch Profile in Settings.
-                </div>
-                <div class="cal-info-box" style="margin-top:6px;border-color:#00aaff44;">
-                    <strong style="color:#00aaff;">&#9432; Speaker note:</strong>
-                    The sweep uses <em>internal digital detection</em> &mdash; the oscillator feeds directly into
-                    the pitch analyser, bypassing the speakers entirely. This means all 6 strings will read
-                    <span class="cal-good">GREEN (&plusmn;0.1&cent;)</span> confirming the system is computing the
-                    correct Railsback-adjusted frequencies for your A4 reference.<br>
-                    <span style="color:#aaaaaa;">Low-frequency tones (E2 &asymp;82 Hz, A2 &asymp;110 Hz) now get a
-                    frequency-dependent speaker boost to counter equal-loudness rolloff on tablet/phone speakers, but
-                    the sweep still uses internal digital detection for repeatable calibration accuracy.</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- String Selector -->
-        <div class="string-selector">
-            <div class="string-selector-header">
-                <h3>SELECT STRING</h3>
-                <button class="btn-auto active" id="auto-btn">AUTO</button>
-            </div>
-            <div class="string-grid" id="string-grid"></div>
-            <div class="info-text">
-                <div>GREEN: &plusmn;2&cent; (Locked) &bull; YELLOW: &plusmn;10&cent; (Converging) &bull; RED: &gt;&plusmn;10&cent; (Adjusting)</div>
-                <div style="margin-top:4px;">NSDF McLeod Pitch Method &bull; FFT Harmonic Analysis &bull; Multi-Ring Strobe</div>
-            </div>
+    <!-- Strobe display -->
+    <div class="strobe-container">
+        <canvas id="strobe-canvas" width="300" height="300"></canvas>
+        <div class="strobe-overlay" id="strobe-overlay">
+            <div class="note-name" id="note-name" style="color:#00ff00">--</div>
+            <div class="note-octave" id="note-octave"></div>
+            <div class="play-hint" id="play-hint">PLAY A NOTE</div>
         </div>
     </div>
 
-    <script>
-    // ================================================================
-    // STATE
-    // ================================================================
-    const state = {
-        isListening: false,
-        selectedString: 0,
-        autoAdvanceTimerId: null,
-        currentFreq: 0,
-        currentNote: '',
-        cents: 0,
-        rms: 0,
-        showSettings: false,
-        // Audio
-        audioContext: null,
-        analyser: null,
-        microphone: null,
-        inputStream: null,
-        noteLockFilter: null,
-        animationFrame: null,
-        smoothingBuffer: [],
-        frameCounter: 0,
-        // Settings
-        tuningPreset: 'standard',
-        stretchProfile: 'off',
-        guitarType: 'electric',
-        temperament: 'equal',
-        a4Calibration: 440.0,
-        useCompensation: true,
-        noteLockEnabled: false,
-        sensitivity: 0.75,
-        // Auto-detect
-        autoDetect: true,
-        autoDetectHoldFrames: 0,   // Hysteresis counter
-        autoDetectCandidate: -1,   // Candidate string during hysteresis
-        // Strobe
-        strobePhase: 0,
-        harmonicMagnitudes: new Float32Array(8),
-        // Strobe lock snap
-        lockFrames: 0,
-        lockFlash: 0,
-        prevLocked: false,
-        // Stable lock confirmation (held ±1.5¢ for ~1 second)
-        stableLockFrames: 0,
-        stableLocked: false,
-        lockIsolationFrames: 0,
-        pitchConfidence: 0,
-        // Debug logging flag and throttle (main branch additions)
-        debugLogging: false,
-        lastDebugLogMs: 0,
-        // EMA-smoothed cents value used only for the precision indicator bar.
-        // Kept separate from state.cents so the numerical readout remains crisp.
-        displayedCents: 0
-    };
-
-    // ================================================================
-    // PRE-ALLOCATED DSP BUFFERS
-    // ================================================================
-    // All sizes derived from fixed fftSize = 4096.
-    // Eliminates ~64 KB of typed-array allocation per detection cycle
-    // (~30 cycles/s), preventing GC pauses that cause pitch-jitter.
-    const _timeDomainBuf = new Float32Array(4096);          // analyser.getFloatTimeDomainData
-    const _freqDomainBuf = new Float32Array(2049);          // analyser.getFloatFrequencyData  (fftSize/2 + 1)
-    const _cumEBuf       = new Float64Array(4097);          // NSDF cumulative energy           (W + 1 max)
-    const _nsdfBuf       = new Float32Array(2049);          // NSDF values                      (maxLag + 1 max)
-
-    // MPM / lock tuning parameters (kept in one object for easy field tuning)
-    const MPM_PARAMS = {
-        minFreqHz: 55,
-        maxFreqHz: 1400,
-        silenceFloorBase: 0.0008,
-        minClarity: 0.40,
-        selectRatio: 0.80,
-        octaveLookaheadTolerance: 0.12,
-        confidenceFloor: 0.45,
-        confidenceForStableLock: 0.84,
-        confidenceForIsolation: 0.78
-    };
-
-    const LOCK_ISOLATION = {
-        entryCents: 2.0,
-        exitCents: 3.0,
-        minMarginCents: 16,
-        holdFrames: 8
-    };
-
-    // Cached DOM element references (populated in init — avoids repeated querySelector)
-    const _el = {};
-
-    // Render timing for frame-rate-independent strobe phase (handles 90 / 120 Hz displays)
-    let _lastRenderMs = 0;
-
-    // RGB cache for strobe renderer — avoids hex→int parse every rAF frame
-    let _cachedStrobeColor = '';
-    let _cachedStrobeRgb   = { r: 0, g: 255, b: 0 };
-
-    // ================================================================
-    // TUNING DATA
-    // ================================================================
-
-    // Tuning presets: notes[] and octaves[] are parallel arrays (low string to high)
-    // Scientific pitch: E2=82.41Hz A2=110Hz D3=146.83Hz G3=196Hz B3=246.94Hz E4=329.63Hz
-    const tuningPresets = {
-        standard:      { name: 'Standard',        notes: ['E','A','D','G','B','E'],   octaves: [2,2,3,3,3,4] },
-        dropD:         { name: 'Drop D',           notes: ['D','A','D','G','B','E'],   octaves: [2,2,3,3,3,4] },
-        halfStepDown:  { name: 'Half Step Down',   notes: ['Eb','Ab','Db','Gb','Bb','Eb'], octaves: [2,2,3,3,3,4] },
-        wholeStepDown: { name: 'Whole Step Down',  notes: ['D','G','C','F','A','D'],   octaves: [2,2,3,3,3,4] },
-        dadgad:        { name: 'DADGAD',           notes: ['D','A','D','G','A','D'],   octaves: [2,2,3,3,3,4] },
-        openG:         { name: 'Open G',           notes: ['D','G','D','G','B','D'],   octaves: [2,2,3,3,3,4] },
-        openD:         { name: 'Open D',           notes: ['D','A','D','F#','A','D'],  octaves: [2,2,3,3,3,4] }
-    };
-
-    // Railsback Stretch Profiles
-    // Per-string cents offsets: [E2, A2, D3, G3, B3, E4]
-    // "standard" matches StroboPro's Guitar/Stretched Tuning preset exactly:
-    //   E2: 82.29Hz (-2.5¢)  A2: 109.90Hz (-1.5¢)  D3: 146.75Hz (-1.0¢)
-    //   G3: 196.00Hz (+0.0¢) B3: 247.08Hz (+1.0¢)  E4: 329.91Hz (+1.5¢)
-    const stretchProfiles = {
-        off:      { name: 'Off (Pure ET)',                    offsets: [0, 0, 0, 0, 0, 0] },
-        light:    { name: 'Light Stretch',                    offsets: [-1.2, -0.7, -0.5, 0.0, +0.5, +0.7] },
-        standard: { name: 'Standard (StroboPro Match)', offsets: [-2.5, -1.5, -1.0, 0.0, +1.0, +1.5] },
-        heavy:    { name: 'Heavy Stretch',                    offsets: [-4.0, -2.5, -1.5, 0.0, +1.5, +2.5] }
-    };
-
-    // Per-guitar-type intonation compensation presets (cents)
-    // These are fixed offsets for typical setups; they do not measure the actual string gauge or action height
-    const stringCompensation = {
-        electric:  [0, 0, -1, -3, -1, 0],
-        acoustic:  [-2, 0, -1, -4, -2, 0],
-        classical: [-3, 0, -2, -5, -2, 0]
-    };
-
-    // Temperament cent offsets from 12-TET
-    const temperaments = {
-        equal:       { name: 'Equal Temperament',       offsets: { C:0,'C#':0,D:0,'D#':0,E:0,F:0,'F#':0,G:0,'G#':0,A:0,'A#':0,B:0,Db:0,Eb:0,Gb:0,Ab:0,Bb:0 }},
-        just:        { name: 'Just Intonation (C)',      offsets: { C:0,'C#':-11,D:4,'D#':-6,E:-14,F:-2,'F#':-10,G:2,'G#':-8,A:-16,'A#':-4,B:-12,Db:-11,Eb:-6,Gb:-10,Ab:-8,Bb:-4 }},
-        pythagorean: { name: 'Pythagorean',              offsets: { C:0,'C#':14,D:4,'D#':18,E:8,F:-2,'F#':12,G:2,'G#':16,A:6,'A#':20,B:10,Db:14,Eb:18,Gb:12,Ab:16,Bb:20 }},
-        meantone:    { name: 'Quarter-Comma Meantone',   offsets: { C:0,'C#':-24,D:-7,'D#':-31,E:-14,F:7,'F#':-17,G:0,'G#':-24,A:-7,'A#':-31,B:-14,Db:-24,Eb:-31,Gb:-17,Ab:-24,Bb:-31 }},
-        werckmeister:{ name: 'Werckmeister III',         offsets: { C:0,'C#':-8,D:-4,'D#':-10,E:-8,F:2,'F#':-6,G:-2,'G#':-8,A:-6,'A#':-8,B:-4,Db:-8,Eb:-10,Gb:-6,Ab:-8,Bb:-8 }}
-    };
-
-    // Note semitone offsets from A (within an octave)
-    const NOTE_SEMITONES = {
-        'C':-9, 'C#':-8, 'Db':-8,
-        'D':-7, 'D#':-6, 'Eb':-6,
-        'E':-5,
-        'F':-4, 'F#':-3, 'Gb':-3,
-        'G':-2, 'G#':-1, 'Ab':-1,
-        'A':0,  'A#':1,  'Bb':1,
-        'B':2
-    };
-
-    // ================================================================
-    // CORE FREQUENCY CALCULATION
-    // ================================================================
-
-    function getNoteOffset(note, octave) {
-        return NOTE_SEMITONES[note] + (octave - 4) * 12;
-    }
-
-    function getTargetFrequency(stringIndex) {
-        const preset = tuningPresets[state.tuningPreset];
-        const note = preset.notes[stringIndex];
-        const octave = preset.octaves[stringIndex];
-
-        // Base equal-temperament frequency from A4 reference
-        const semitonesFromA4 = getNoteOffset(note, octave);
-        let freq = state.a4Calibration * Math.pow(2, semitonesFromA4 / 12);
-
-        // Apply temperament offset
-        const tempOffset = temperaments[state.temperament].offsets[note] || 0;
-        if (tempOffset !== 0) {
-            freq *= Math.pow(2, tempOffset / 1200);
-        }
-
-        // Apply Railsback stretch offset
-        const stretchOffset = stretchProfiles[state.stretchProfile].offsets[stringIndex] || 0;
-        if (stretchOffset !== 0) {
-            freq *= Math.pow(2, stretchOffset / 1200);
-        }
-
-        // Apply intonation compensation
-        if (state.useCompensation) {
-            const compOffset = (stringCompensation[state.guitarType] || [])[stringIndex] || 0;
-            if (compOffset !== 0) {
-                freq *= Math.pow(2, compOffset / 1200);
-            }
-        }
-
-        return freq;
-    }
-
-    function calculateCents(detected, target) {
-        if (detected <= 0 || target <= 0) return 0;
-        return 1200 * Math.log2(detected / target);
-    }
-
-    // ================================================================
-    // PITCH DETECTION - McLeod Pitch Method (NSDF)
-    // ================================================================
-
-    function detectPitchMPM(buffer, options = {}) {
-        const n = buffer.length;
-        const sr = state.audioContext ? state.audioContext.sampleRate : 48000;
-        const cfg = { ...MPM_PARAMS, ...options };
-
-        // RMS energy check
-        let rmsSum = 0;
-        for (let i = 0; i < n; i++) {
-            rmsSum += buffer[i] * buffer[i];
-        }
-        const rms = Math.sqrt(rmsSum / n);
-        state.rms = rms;
-
-        const threshold = cfg.silenceFloorBase * state.sensitivity;
-        if (rms < threshold) return null;
-
-        // Zero-crossing trim: find first rising zero crossing to reduce edge artifacts
-        let startIdx = 0;
-        for (let i = 1; i < n; i++) {
-            if (buffer[i - 1] <= 0 && buffer[i] > 0) {
-                startIdx = i;
-                break;
-            }
-        }
-        const buf = buffer.subarray(startIdx);
-        const W = buf.length;
-        if (W < 256) return null;
-
-        // Lag search bounds for guitar range (~60Hz to ~1400Hz covers open strings + high frets)
-        const minLag = Math.max(2, Math.floor(sr / cfg.maxFreqHz));
-        const maxLag = Math.min(Math.floor(W / 2), Math.floor(sr / cfg.minFreqHz));
-
-        // Precompute cumulative energy for efficient NSDF normalization
-        // cumE[i] = sum of buf[j]^2 for j = i..W-1
-        // Reuse pre-allocated buffer. cumE[W] must be 0 (sentinel for backward pass).
-        const cumE = _cumEBuf;
-        cumE[W] = 0; // sentinel — critical when reusing across calls
-        for (let i = W - 1; i >= 0; i--) {
-            cumE[i] = cumE[i + 1] + buf[i] * buf[i];
-        }
-
-        // Compute NSDF for each lag in range (reuse pre-allocated buffer)
-        const nsdf = _nsdfBuf;
-        for (let tau = minLag; tau <= maxLag; tau++) {
-            let acf = 0;
-            const len = W - tau;
-            for (let j = 0; j < len; j++) {
-                acf += buf[j] * buf[j + tau];
-            }
-            // m'(tau) = sum(x[j]^2, j=0..len-1) + sum(x[j+tau]^2, j=0..len-1)
-            const energyA = cumE[0] - cumE[len];
-            const energyB = cumE[tau] - cumE[tau + len];
-            const denom = energyA + energyB;
-            nsdf[tau] = denom > 0 ? (2 * acf / denom) : 0;
-        }
-
-        // Find key maxima: peaks in positive regions after zero crossings
-        const keyMaxima = [];
-        let isNeg = true;
-        for (let tau = minLag; tau <= maxLag; tau++) {
-            if (nsdf[tau] < 0) {
-                isNeg = true;
-            } else if (isNeg && nsdf[tau] >= 0) {
-                isNeg = false;
-                // Find peak in this positive region
-                let peakVal = nsdf[tau];
-                let peakPos = tau;
-                while (tau <= maxLag && nsdf[tau] >= 0) {
-                    if (nsdf[tau] > peakVal) {
-                        peakVal = nsdf[tau];
-                        peakPos = tau;
-                    }
-                    tau++;
-                }
-                keyMaxima.push({ pos: peakPos, val: peakVal });
-                isNeg = true;
-            }
-        }
-
-        if (keyMaxima.length === 0) return null;
-
-        // Find the global maximum peak value
-        let globalMax = 0;
-        for (const km of keyMaxima) {
-            if (km.val > globalMax) globalMax = km.val;
-        }
-
-        // ── Peak selection ────────────────────────────────────────────
-        // Standard McLeod rule: first key maximum ≥ 0.8 × globalMax.
-        // "First" = lowest lag = highest frequency in the candidate set.
-        const selectThreshold = cfg.selectRatio * globalMax;
-        let bestPeak = null;
-        for (const km of keyMaxima) {
-            if (km.val >= selectThreshold) {
-                bestPeak = km;
-                break;
-            }
-        }
-
-        if (!bestPeak || bestPeak.val < cfg.minClarity) return null;
-
-        // ── Sub-harmonic preference: guard against E2/A2 octave errors ─
-        // On low strings the 2nd harmonic can dominate the NSDF, causing the
-        // algorithm to select its period (lag ≈ 291 for E2 at 48 kHz) rather
-        // than the fundamental (lag ≈ 582).
-        //
-        // GUARD: only apply when bestPeak is NOT the global maximum.  When
-        // the selected peak IS the global max it is already the fundamental —
-        // the NSDF also has a valid secondary peak at 2× the fundamental lag
-        // (the signal simply repeating a second time), and looking there would
-        // falsely halve the detected frequency (e.g. E4 at 330 Hz → ~165 Hz,
-        // which reads as ~1200 ¢ flat — "not even close").
-        //
-        // When a harmonic was selected first (smaller lag than the fundamental,
-        // but lower NSDF value than the global max), the true fundamental lies
-        // near 2× the selected lag and correcting is appropriate.
-        if (bestPeak && bestPeak.val < globalMax) {
-            const doubleLag = bestPeak.pos * 2;
-            for (const km of keyMaxima) {
-                if (km.pos > bestPeak.pos &&
-                    km.pos >= doubleLag * (1 - cfg.octaveLookaheadTolerance) &&
-                    km.pos <= doubleLag * (1 + cfg.octaveLookaheadTolerance) &&
-                    km.val >= selectThreshold) {
-                    bestPeak = km;   // prefer the lower-octave candidate
-                    break;
-                }
-            }
-        }
-
-        // Parabolic interpolation for sub-sample accuracy
-        const p = bestPeak.pos;
-        const peakRatio = globalMax > 0 ? (bestPeak.val / globalMax) : 0;
-        const confidenceBase = Math.max(0, Math.min(1, (bestPeak.val - cfg.confidenceFloor) / (1 - cfg.confidenceFloor)));
-        const confidence = Math.max(0, Math.min(1, confidenceBase * peakRatio));
-        if (p > minLag && p < maxLag) {
-            const y1 = nsdf[p - 1];
-            const y2 = nsdf[p];
-            const y3 = nsdf[p + 1];
-            const denom = 2 * (y1 - 2 * y2 + y3);
-            if (Math.abs(denom) > 1e-10) {
-                const refinedLag = p + (y1 - y3) / denom;
-                return {
-                    frequency: sr / refinedLag,
-                    confidence,
-                    clarity: bestPeak.val
-                };
-            }
-        }
-
-        return {
-            frequency: sr / p,
-            confidence,
-            clarity: bestPeak.val
-        };
-    }
-
-    function detectPitch(buffer) {
-        const result = detectPitchMPM(buffer);
-        state.pitchConfidence = result ? result.confidence : 0;
-        return result ? result.frequency : null;
-    }
-
-    // ================================================================
-    // PITCH SMOOTHING
-    // ================================================================
-
-    function smoothPitch(pitch) {
-        if (pitch === null) return null;
-
-        state.smoothingBuffer.push(pitch);
-        if (state.smoothingBuffer.length > 8) {
-            state.smoothingBuffer.shift();
-        }
-
-        if (state.smoothingBuffer.length < 3) return pitch;
-
-        // Median for outlier rejection
-        const sorted = [...state.smoothingBuffer].sort((a, b) => a - b);
-        const median = sorted[Math.floor(sorted.length / 2)];
-
-        // Filter values within 50 cents of median
-        const filtered = state.smoothingBuffer.filter(p =>
-            Math.abs(1200 * Math.log2(p / median)) < 50
-        );
-
-        if (filtered.length === 0) return pitch;
-
-        // Weighted average (recent values weigh more)
-        let weightSum = 0;
-        let valSum = 0;
-        for (let i = 0; i < filtered.length; i++) {
-            const w = 1 + i * 0.5;
-            valSum += filtered[i] * w;
-            weightSum += w;
-        }
-        return valSum / weightSum;
-    }
-
-    // ================================================================
-    // HARMONIC ANALYSIS (FFT)
-    // ================================================================
-
-    // Writes directly into state.harmonicMagnitudes (no allocation on hot path).
-    // Uses pre-allocated _freqDomainBuf instead of creating a new Float32Array each call.
-    function getHarmonicMagnitudes(fundamentalFreq) {
-        const mags = state.harmonicMagnitudes;
-        if (!state.analyser || fundamentalFreq <= 0) {
-            for (let i = 0; i < 8; i++) mags[i] = 0;
-            return;
-        }
-
-        state.analyser.getFloatFrequencyData(_freqDomainBuf);
-        const sr       = state.audioContext.sampleRate;
-        const binSize  = sr / state.analyser.fftSize;
-        const binCount = state.analyser.frequencyBinCount; // fftSize / 2 + 1
-
-        for (let h = 1; h <= 8; h++) {
-            const bin = Math.round(fundamentalFreq * h / binSize);
-            if (bin >= 0 && bin < binCount) {
-                // freqData is in dB (-100 silence to ~0 max)
-                // Check ±1 bin: harmonic may not land exactly on a bin center
-                let peakDb = _freqDomainBuf[bin];
-                if (bin > 0)          peakDb = Math.max(peakDb, _freqDomainBuf[bin - 1]);
-                if (bin < binCount-1) peakDb = Math.max(peakDb, _freqDomainBuf[bin + 1]);
-                mags[h - 1] = Math.max(0, Math.min(1, (peakDb + 80) / 70));
-            } else {
-                mags[h - 1] = 0;
-            }
-        }
-    }
-
-    // ================================================================
-    // CANVAS STROBE RENDERER
-    // ================================================================
-
-    const strobeCanvas = document.getElementById('strobe-canvas');
-    const strobeCtx = strobeCanvas.getContext('2d');
-
-    // Color utility
-    function hexToRgb(hex) {
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return { r, g, b };
-    }
-
-    function getStatusColor(cents) {
-        const a = Math.abs(cents);
-        if (a <= 2) return '#00ff00';
-        if (a <= 10) return '#ffff00';
-        return '#ff4444';
-    }
-
-    function getStatusLabel(cents) {
-        const a = Math.abs(cents);
-        if (a <= 2) return 'LOCKED';
-        if (a <= 10) return 'CONVERGING';
-        return 'ADJUSTING';
-    }
-
-    // Strobe phase rate: radians per second per cent of deviation.
-    // Equivalent to the original 0.0025 rad/frame × 60 fps = 0.15 rad·s⁻¹·¢⁻¹.
-    // Using wall-clock time makes the strobe speed identical on 60 / 90 / 120 Hz displays.
-    const STROBE_RATE = 0.15; // rad · s⁻¹ · ¢⁻¹
-
-    function renderStrobe() {
-        const dpr = window.devicePixelRatio || 1;
-        const cssSize = parseInt(strobeCanvas.style.width) || 280;
-        const size = cssSize * dpr;
-
-        // Ensure canvas backing dimensions match
-        if (strobeCanvas.width !== size || strobeCanvas.height !== size) {
-            strobeCanvas.width = size;
-            strobeCanvas.height = size;
-        }
-
-        const ctx = strobeCtx;
-        const cx = size / 2;
-        const cy = size / 2;
-        const maxR = cx - 4;
-        const centerR = maxR * 0.22;
-        const numRings = 6;
-        const ringSpace = (maxR - centerR) / numRings;
-        const color = state.isListening && state.currentFreq > 0
-            ? getStatusColor(state.cents)
-            : '#00ff00';
-
-        // Cache hex→RGB: string comparison is O(7) chars vs repeated parseInt calls
-        if (color !== _cachedStrobeColor) {
-            _cachedStrobeRgb   = hexToRgb(color);
-            _cachedStrobeColor = color;
-        }
-        const rgb = _cachedStrobeRgb;
-
-        // Frame-rate-independent phase update.
-        // Caps dt at 50 ms to prevent a large jump after a tab becomes visible again.
-        const now = performance.now();
-        const dtSec = _lastRenderMs > 0
-            ? Math.min((now - _lastRenderMs) * 0.001, 0.05)
-            : 0.01667; // assume 60 fps on the very first frame
-        _lastRenderMs = now;
-
-        if (state.isListening && state.currentFreq > 0) {
-            // When stable lock is active, damp the phase update to suppress
-            // the jitter caused by micro-fluctuations in pitch detection.
-            // The strobe remains responsive to real de-tuning but tiny
-            // measurement noise no longer causes visible ring oscillation.
-            const lockDamp = state.stableLocked ? 0.25 : 1.0;
-            state.strobePhase += state.cents * STROBE_RATE * dtSec * lockDamp;
-        }
-
-        // Clear
-        ctx.clearRect(0, 0, size, size);
-
-        // Background circle
-        const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
-        bgGrad.addColorStop(0, '#0a1a0a');
-        bgGrad.addColorStop(1, '#000000');
-        ctx.fillStyle = bgGrad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Outer border
-        ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`;
-        ctx.lineWidth = 2 * dpr;
-        ctx.beginPath();
-        ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Lock state helpers
-        const isInLock   = state.prevLocked;
-        const flashT     = state.lockFlash / 22; // 1.0 → 0.0 as flash decays
-
-        // Draw harmonic rings
-        for (let h = 0; h < numRings; h++) {
-            const harmonic = h + 1;
-            const innerR = centerR + h * ringSpace + ringSpace * 0.1;
-            const outerR = centerR + (h + 1) * ringSpace - ringSpace * 0.1;
-
-            // Rotation: each harmonic rotates at harmonic× the base rate
-            const rotation = state.strobePhase * harmonic;
-
-            // Brightness from harmonic magnitude
-            // In lock: boost baseAlpha so rings shine crisper
-            const mag = state.harmonicMagnitudes[h] || 0;
-            const baseAlpha = state.isListening && state.currentFreq > 0
-                ? (isInLock ? 0.14 : 0.08)
-                : 0.04;
-            // Flash boost: briefly raises brightness during lock-snap animation
-            const flashBoost = flashT * 0.30;
-            const alpha = baseAlpha + mag * 0.85 + flashBoost;
-
-            // Segment count: more segments for outer rings
-            const numSegs = 12;
-            const segAngle = (Math.PI * 2) / numSegs;
-            const gapAngle = segAngle * 0.12;
-
-            for (let s = 0; s < numSegs; s++) {
-                const startA = s * segAngle + rotation;
-                const endA = startA + segAngle - gapAngle;
-
-                ctx.beginPath();
-                ctx.arc(cx, cy, outerR, startA, endA);
-                ctx.arc(cx, cy, innerR, endA, startA, true);
-                ctx.closePath();
-
-                ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${Math.min(1, alpha).toFixed(3)})`;
-                ctx.fill();
-            }
-
-            // Subtle ring separator
-            ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.08)`;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(cx, cy, outerR + ringSpace * 0.05, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-
-        // ── Lock snap: expanding sonar-ping ring ─────────────────────
-        // Fires when the strobe first settles into the ±2¢ locked zone.
-        // A bright ring expands from centerR to maxR over the flash duration.
-        if (state.lockFlash > 0) {
-            const progress  = 1 - flashT;                      // 0→1 as flash decays
-            const pulseR    = centerR + (maxR - centerR) * progress;
-            const pulseW    = Math.max(1, 5 * dpr * (1 - progress * 0.7));
-            const pulseA    = flashT * 0.90;
-            ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${pulseA.toFixed(3)})`;
-            ctx.lineWidth   = pulseW;
-            ctx.beginPath();
-            ctx.arc(cx, cy, pulseR, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-
-        // Center circle background
-        // In lock: slightly brighter core fill
-        const centerGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, centerR);
-        if (isInLock) {
-            centerGrad.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.10)`);
-            centerGrad.addColorStop(1, '#050a05');
-        } else {
-            centerGrad.addColorStop(0, '#0d1a0d');
-            centerGrad.addColorStop(1, '#050a05');
-        }
-        ctx.fillStyle = centerGrad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Center border
-        // In lock: brighter, slightly thicker rim
-        const rimAlpha = isInLock ? 0.70 : 0.30;
-        ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${rimAlpha})`;
-        ctx.lineWidth = (isInLock ? 2.5 : 1.5) * dpr;
-        ctx.beginPath();
-        ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // ── Lock steady: four crosshair tick marks on center rim ─────
-        // Gives a "crosshair / locked-on" feel while the strobe holds lock.
-        if (isInLock) {
-            const tickOuter = centerR;
-            const tickInner = centerR * 0.60;
-            ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.80)`;
-            ctx.lineWidth   = 1.5 * dpr;
-            for (let i = 0; i < 4; i++) {
-                const angle = i * (Math.PI / 2);
-                ctx.beginPath();
-                ctx.moveTo(cx + Math.cos(angle) * tickInner,
-                           cy + Math.sin(angle) * tickInner);
-                ctx.lineTo(cx + Math.cos(angle) * tickOuter,
-                           cy + Math.sin(angle) * tickOuter);
-                ctx.stroke();
-            }
-        }
-    }
-
-    // ================================================================
-    // NOTE-LOCK
-    // ================================================================
-
-    function engageNoteLock() {
-        if (!state.audioContext || !state.microphone || !state.analyser) return;
-
-        const targetFreq = getTargetFrequency(state.selectedString);
-
-        // Create bandpass filter centered on target frequency
-        state.noteLockFilter = state.audioContext.createBiquadFilter();
-        state.noteLockFilter.type = 'bandpass';
-        state.noteLockFilter.frequency.value = targetFreq;
-        state.noteLockFilter.Q.value = 4.0; // Moderate Q: selective but not too narrow
-
-        // Reconnect audio graph: mic -> bandpass -> analyser
-        state.microphone.disconnect();
-        state.microphone.connect(state.noteLockFilter);
-        state.noteLockFilter.connect(state.analyser);
-    }
-
-    function disengageNoteLock() {
-        if (!state.audioContext || !state.microphone || !state.analyser) return;
-
-        state.microphone.disconnect();
-        if (state.noteLockFilter) {
-            state.noteLockFilter.disconnect();
-            state.noteLockFilter = null;
-        }
-        state.microphone.connect(state.analyser);
-    }
-
-    function updateNoteLockFrequency() {
-        if (state.noteLockFilter && state.noteLockEnabled) {
-            const targetFreq = getTargetFrequency(state.selectedString);
-            state.noteLockFilter.frequency.value = targetFreq;
-        }
-    }
-
-    // ================================================================
-    // UI UPDATE FUNCTIONS
-    // ================================================================
-
-    function updateDisplay() {
-        const color = getStatusColor(state.cents);
-        const label = getStatusLabel(state.cents);
-
-        // Use cached element references — avoids repeated querySelector on every call
-        _el.statusText.textContent = label;
-        _el.statusText.style.color = color;
-
-        _el.freqDisplay.textContent = state.currentFreq.toFixed(2) + ' Hz';
-
-        const sign = state.cents > 0.05 ? '+' : '';
-        _el.centsDisplay.textContent = sign + state.cents.toFixed(1) + '\u00A2';
-        _el.centsDisplay.style.color = color;
-
-        _el.mainDisplay.style.borderColor = color;
-        _el.mainDisplay.style.boxShadow = `0 0 20px ${color}44`;
-
-        _el.noteOverlay.style.color = color;
-
-        // Use EMA-smoothed displayedCents for the indicator position so the
-        // needle settles smoothly near lock instead of twitching on each frame.
-        // The numerical cents readout above still shows the raw, crisp value.
-        const pct = 50 + (Math.max(-50, Math.min(50, state.displayedCents)) / 50) * 48;
-        _el.precIndicator.style.left = pct + '%';
-        _el.precIndicator.style.background = color;
-
-        _el.statusRms.textContent = (state.rms * 100).toFixed(1);
-
-        // Update stable lock LED and status label
-        if (state.stableLocked) {
-            _el.lockIndicator.classList.add('locked');
-            // Override status text with a bold "IN TUNE" during stable lock
-            _el.statusText.textContent = '\u2713 IN TUNE';
-            _el.statusText.style.color = '#00ff55';
-            // Show which string comes next in the lock label
-            const preset = tuningPresets[state.tuningPreset];
-            const nextIdx = (state.selectedString + 1) % preset.notes.length;
-            const nextNote = preset.notes[nextIdx] + preset.octaves[nextIdx];
-            _el.lockLabel.textContent = '\u2713 IN TUNE \u2014 ADVANCING TO ' + nextNote + '\u2026';
-        } else {
-            _el.lockIndicator.classList.remove('locked');
-            if (state.lockIsolationFrames > 0) {
-                const pct = Math.round((state.lockIsolationFrames / LOCK_ISOLATION.holdFrames) * 100);
-                _el.lockLabel.textContent = `ISOLATING TARGET TONE \u2014 ${Math.min(100, pct)}%`;
-            } else {
-                _el.lockLabel.textContent = 'TUNE LOCKED \u2713';
-            }
-        }
-    }
-
-    function updateSystemStatus() {
-        document.getElementById('status-tuning').textContent = tuningPresets[state.tuningPreset].name;
-
-        const sp = stretchProfiles[state.stretchProfile];
-        const stretchEl = document.getElementById('status-stretch');
-        stretchEl.textContent = sp.name;
-        stretchEl.className = state.stretchProfile !== 'off' ? 'status-highlight' : '';
-
-        document.getElementById('status-a4').textContent = state.a4Calibration.toFixed(1);
-
-        const detectEl = document.getElementById('status-detect');
-        detectEl.style.color = '';
-        if (state.autoDetect) {
-            detectEl.textContent = 'AUTO';
-            detectEl.className = 'status-highlight';
-        } else if (state.noteLockEnabled) {
-            detectEl.textContent = 'LOCKED';
-            detectEl.className = 'status-highlight';
-            detectEl.style.color = '#00ffaa';
-        } else {
-            detectEl.textContent = 'MANUAL';
-            detectEl.className = '';
-        }
-
-        document.getElementById('status-comp').textContent = state.useCompensation ? 'ON' : 'OFF';
-    }
-
-    function updateStretchDisplay() {
-        const profile = stretchProfiles[state.stretchProfile];
-        const preset = tuningPresets[state.tuningPreset];
-        const displayEl = document.getElementById('stretch-offsets-display');
-
-        if (state.stretchProfile === 'off') {
-            displayEl.innerHTML = 'No stretch applied &mdash; pure 12-TET frequencies.';
-        } else {
-            let html = '';
-            for (let i = 0; i < preset.notes.length; i++) {
-                const note = preset.notes[i] + preset.octaves[i];
-                const offset = profile.offsets[i];
-                const sign = offset > 0 ? '+' : '';
-                html += `<span>${note}: ${sign}${offset.toFixed(1)}&cent;</span>`;
-            }
-            displayEl.innerHTML = html;
-        }
-    }
-
-    function updateTargetDisplay() {
-        const preset = tuningPresets[state.tuningPreset];
-        const note = preset.notes[state.selectedString];
-        const octave = preset.octaves[state.selectedString];
-        const targetFreq = getTargetFrequency(state.selectedString);
-
-        document.getElementById('strobe-note').textContent = note;
-        document.getElementById('strobe-octave').textContent = octave;
-
-        let targetText = `Target: ${targetFreq.toFixed(2)} Hz`;
-        const stretchOff = stretchProfiles[state.stretchProfile].offsets[state.selectedString];
-        if (stretchOff !== 0) {
-            targetText += ` (stretch: ${stretchOff > 0 ? '+' : ''}${stretchOff.toFixed(1)}\u00A2)`;
-        }
-        const tempOff = temperaments[state.temperament].offsets[note] || 0;
-        if (tempOff !== 0) {
-            targetText += ` (temp: ${tempOff > 0 ? '+' : ''}${tempOff}\u00A2)`;
-        }
-        document.getElementById('target-freq').textContent = targetText;
-    }
-
-    function updateStringSelector() {
-        const grid = document.getElementById('string-grid');
-        grid.innerHTML = '';
-
-        const preset = tuningPresets[state.tuningPreset];
-        const stretchOffsets = stretchProfiles[state.stretchProfile].offsets;
-
-        const nextTargetIdx = state.stableLocked
-            ? (state.selectedString + 1) % preset.notes.length
-            : -1;
-
-        for (let i = 0; i < preset.notes.length; i++) {
-            const note = preset.notes[i];
-            const octave = preset.octaves[i];
-            const targetFreq = getTargetFrequency(i);
-            const stretch = stretchOffsets[i];
-            const comp = state.useCompensation ? ((stringCompensation[state.guitarType] || [])[i] || 0) : 0;
-            const isSelected = state.selectedString === i;
-            const isNextTarget = i === nextTargetIdx && !isSelected;
-
-            const btn = document.createElement('button');
-            btn.className = 'string-btn' + (isSelected ? ' active' : '') + (isNextTarget ? ' next-target' : '');
-            btn.onclick = () => {
-                state.selectedString = i;
-                // Cancel any pending auto-advance
-                if (state.autoAdvanceTimerId !== null) {
-                    clearTimeout(state.autoAdvanceTimerId);
-                    state.autoAdvanceTimerId = null;
-                }
-                // Reset stable lock so the new string starts fresh
-                state.stableLocked = false;
-                state.stableLockFrames = 0;
-                state.lockIsolationFrames = 0;
-                state.smoothingBuffer = [];
-                // Manual string selection disables auto-detect
-                if (state.autoDetect) {
-                    state.autoDetect = false;
-                    document.getElementById('auto-btn').classList.remove('active');
-                    document.getElementById('auto-btn').textContent = 'MANUAL';
-                    updateSystemStatus();
-                }
-                updateStringSelector();
-                updateTargetDisplay();
-                updateNoteLockFrequency();
-            };
-
-            let html = `<div class="string-note">${note}<span style="font-size:0.6em;opacity:0.8">${octave}</span></div>`;
-            html += `<div class="string-freq">${targetFreq.toFixed(2)} Hz</div>`;
-            if (stretch !== 0) {
-                html += `<div class="string-stretch">${stretch > 0 ? '+' : ''}${stretch.toFixed(1)}\u00A2 str</div>`;
-            }
-            if (comp !== 0) {
-                html += `<div class="string-comp">${comp > 0 ? '+' : ''}${comp}\u00A2 comp</div>`;
-            }
-
-            btn.innerHTML = html;
-            grid.appendChild(btn);
-        }
-    }
-
-    // ================================================================
-    // AUTO-ADVANCE AFTER STABLE LOCK
-    // ================================================================
-
-    function advanceToNextString() {
-        state.autoAdvanceTimerId = null;
-        const preset = tuningPresets[state.tuningPreset];
-        state.selectedString = (state.selectedString + 1) % preset.notes.length;
-        // Reset stable lock and smoothing for the new string
-        state.stableLocked = false;
-        state.stableLockFrames = 0;
-        state.lockIsolationFrames = 0;
-        state.smoothingBuffer = [];
-        updateStringSelector();
-        updateTargetDisplay();
-        updateNoteLockFrequency();
-    }
-
-    // ================================================================
-    // AUTO-DETECT
-    // ================================================================
-
-    const AUTO_HYSTERESIS = 3; // Frames a candidate must hold before switching
-
-    function findNearestString(detectedFreq) {
-        const preset = tuningPresets[state.tuningPreset];
-        let bestIndex = 0;
-        let bestAbsCents = Infinity;
-
-        for (let i = 0; i < preset.notes.length; i++) {
-            const target = getTargetFrequency(i);
-            const cents = Math.abs(calculateCents(detectedFreq, target));
-            if (cents < bestAbsCents) {
-                bestAbsCents = cents;
-                bestIndex = i;
-            }
-        }
-
-        // Only match if within 50 cents (half a semitone)
-        return bestAbsCents <= 50 ? bestIndex : -1;
-    }
-
-    function runAutoDetect(detectedFreq) {
-        if (!state.autoDetect) return;
-
-        const nearest = findNearestString(detectedFreq);
-        if (nearest === -1) {
-            state.autoDetectHoldFrames = 0;
-            state.autoDetectCandidate = -1;
-            return;
-        }
-
-        if (nearest === state.selectedString) {
-            // Already on the right string - reset hysteresis
-            state.autoDetectHoldFrames = 0;
-            state.autoDetectCandidate = -1;
-            return;
-        }
-
-        // Hysteresis: candidate must hold for several frames before switching
-        if (nearest === state.autoDetectCandidate) {
-            state.autoDetectHoldFrames++;
-            if (state.autoDetectHoldFrames >= AUTO_HYSTERESIS) {
-                state.selectedString = nearest;
-                state.smoothingBuffer = []; // Reset smoothing on string change
-                state.autoDetectHoldFrames = 0;
-                state.autoDetectCandidate = -1;
-                updateStringSelector();
-                updateTargetDisplay();
-                updateNoteLockFrequency();
-            }
-        } else {
-            state.autoDetectCandidate = nearest;
-            state.autoDetectHoldFrames = 1;
-        }
-    }
-
-    function getStringIsolationMetrics(detectedFreq) {
-        const preset = tuningPresets[state.tuningPreset];
-        let bestIndex = 0;
-        let bestAbsCents = Infinity;
-        let secondAbsCents = Infinity;
-
-        for (let i = 0; i < preset.notes.length; i++) {
-            const target = getTargetFrequency(i);
-            const cents = Math.abs(calculateCents(detectedFreq, target));
-            if (cents < bestAbsCents) {
-                secondAbsCents = bestAbsCents;
-                bestAbsCents = cents;
-                bestIndex = i;
-            } else if (cents < secondAbsCents) {
-                secondAbsCents = cents;
-            }
-        }
-
-        const marginCents = Number.isFinite(secondAbsCents)
-            ? (secondAbsCents - bestAbsCents)
-            : Infinity;
-
-        return { bestIndex, bestAbsCents, marginCents };
-    }
-
-    // ================================================================
-    // STABLE LOCK CONFIRMATION
-    // ================================================================
-
-    // A "stable lock" fires once the detected pitch has remained inside the
-    // tight ±STABLE_LOCK_CENTS zone for STABLE_LOCK_FRAMES consecutive
-    // detection frames (~1 second at 30 fps).  This gives a reliable
-    // 99.9%-accurate confirmation that is far more stable than the
-    // instantaneous ±2¢ snap flash used for the strobe ring animation.
-    const STABLE_LOCK_CENTS  = 1.5;   // tight zone (inside ±1.5¢)
-    const STABLE_LOCK_EXIT   = 2.5;   // hysteresis: exit lock above ±2.5¢
-    const STABLE_LOCK_FRAMES = 36;    // ~1.2 s at 30-fps detection rate
-
-    function debugLogDetection(source, detectedFreq, targetFreq, centsValue) {
-        if (!state.debugLogging) return;
-        const now = performance.now();
-        if (now - state.lastDebugLogMs < 250) return;
-        state.lastDebugLogMs = now;
-        console.debug('[PrecisionTuner]', {
-            source,
-            detectedHz: Number(detectedFreq.toFixed(3)),
-            targetHz: Number(targetFreq.toFixed(3)),
-            cents: Number(centsValue.toFixed(2)),
-            a4Reference: Number(state.a4Calibration.toFixed(1)),
-            rmsPercent: Number((state.rms * 100).toFixed(2))
-        });
-    }
-
-    // Brief audio ping played once when stable lock is first achieved.
-    // Uses the main AudioContext so no extra context is needed.
-    function playLockPing() {
-        if (!state.audioContext) return;
-        try {
-            const now  = state.audioContext.currentTime;
-            const osc  = state.audioContext.createOscillator();
-            const gain = state.audioContext.createGain();
-            osc.type = 'sine';
-            osc.frequency.value = 880;   // A5 — bright, pleasant
-            gain.gain.setValueAtTime(0.18, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
-            osc.connect(gain);
-            gain.connect(state.audioContext.destination);
-            osc.start(now);
-            osc.stop(now + 0.38);
-        } catch (_) { /* silently ignore if context is suspended */ }
-    }
-
-    // ================================================================
-    // AUDIO PROCESSING LOOP
-    // ================================================================
-
-    function processAudio() {
-        if (!state.isListening || !state.analyser) return;
-
-        // ── AudioContext auto-resume ──────────────────────────────────
-        // Browsers (especially mobile) can suspend the AudioContext at any
-        // time.  Resume silently so the tuner self-heals without user action.
-        if (state.audioContext && state.audioContext.state === 'suspended') {
-            state.audioContext.resume().catch(() => {});
-        }
-
-        state.frameCounter++;
-
-        // ── Error boundary ────────────────────────────────────────────
-        // A thrown exception anywhere in the detection pipeline must NOT
-        // stop the rAF loop — that would leave the user with a frozen
-        // display and no indication of the failure.
-        try {
-
-        // Pitch detection every other frame (~30fps) for efficiency.
-        // _timeDomainBuf is pre-allocated — no GC allocation on this path.
-        if (state.frameCounter % 2 === 0) {
-            state.analyser.getFloatTimeDomainData(_timeDomainBuf);
-            const detection = detectPitchMPM(_timeDomainBuf);
-            state.pitchConfidence = detection ? detection.confidence : 0;
-            const rawPitch = detection ? detection.frequency : null;
-            const smoothed = smoothPitch(rawPitch);
-
-            if (smoothed) {
-                // Auto-detect nearest string before calculating cents
-                runAutoDetect(smoothed);
-
-                const targetFreq = getTargetFrequency(state.selectedString);
-                const centsOff = calculateCents(smoothed, targetFreq);
-                const isolation = getStringIsolationMetrics(smoothed);
-
-                state.currentFreq = smoothed;
-                state.cents = Math.round(centsOff * 10) / 10; // 0.1 cent resolution
-                debugLogDetection('microphone', smoothed, targetFreq, state.cents);
-
-                // ── EMA-smoothed displayed cents (precision indicator bar) ─
-                // Uses a faster EMA during detection and a slower one when
-                // stably locked, so the needle settles visually near lock
-                // without lag during active tuning.
-                const emaK = state.stableLocked ? 0.10 : 0.35;
-                state.displayedCents = state.displayedCents * (1 - emaK) + state.cents * emaK;
-
-                // ── Deliberate tone isolation before lock acceptance ──────
-                // Requires: close to target, confidence above floor, and
-                // enough separation from neighbouring strings so a "grazing"
-                // pass over lock cannot trigger a false-positive.
-                const isolationQualified =
-                    isolation.bestIndex === state.selectedString &&
-                    Math.abs(state.cents) <= LOCK_ISOLATION.entryCents &&
-                    state.pitchConfidence >= MPM_PARAMS.confidenceForIsolation &&
-                    isolation.marginCents >= LOCK_ISOLATION.minMarginCents;
-
-                if (isolationQualified) {
-                    state.lockIsolationFrames = Math.min(LOCK_ISOLATION.holdFrames, state.lockIsolationFrames + 1);
-                } else if (Math.abs(state.cents) > LOCK_ISOLATION.exitCents ||
-                           state.pitchConfidence < (MPM_PARAMS.confidenceForIsolation - 0.08)) {
-                    state.lockIsolationFrames = 0;
-                } else {
-                    state.lockIsolationFrames = Math.max(0, state.lockIsolationFrames - 1);
-                }
-                const isolationReady = state.lockIsolationFrames >= LOCK_ISOLATION.holdFrames;
-
-                // ── Strobe lock snap (±2¢ zone + isolation gate) ─────────
-                const isLocked = Math.abs(state.cents) <= 2.0 && isolationReady;
-                if (isLocked) {
-                    state.lockFrames++;
-                    // Fire the "snap" flash the moment we've held lock for 4 frames
-                    if (state.lockFrames >= 4 && !state.prevLocked) {
-                        state.lockFlash = 22;
-                        state.prevLocked = true;
-                    }
-                } else {
-                    state.lockFrames = 0;
-                    state.prevLocked = false;
-                }
-
-                // ── Stable lock confirmation (±1.5¢ held for ~1 second) ──
-                // Provides a reliable "tuned" indicator with audio ping and
-                // green LED — far more stable than the instantaneous snap flash.
-                const inStableZone = Math.abs(state.cents) <= STABLE_LOCK_CENTS &&
-                                     isolationReady &&
-                                     state.pitchConfidence >= MPM_PARAMS.confidenceForStableLock;
-                if (inStableZone) {
-                    state.stableLockFrames++;
-                    if (state.stableLockFrames >= STABLE_LOCK_FRAMES && !state.stableLocked) {
-                        state.stableLocked = true;
-                        playLockPing();
-                        // Schedule auto-advance to the next string after 0.8 s
-                        if (state.autoAdvanceTimerId === null) {
-                            state.autoAdvanceTimerId = setTimeout(advanceToNextString, 800);
-                        }
-                    }
-                } else if (Math.abs(state.cents) > STABLE_LOCK_EXIT) {
-                    // Only exit stable lock with some hysteresis to prevent flicker
-                    state.stableLockFrames = 0;
-                    state.stableLocked = false;
-                }
-
-                // Get harmonic magnitudes for strobe brightness (writes in-place, no allocation)
-                getHarmonicMagnitudes(smoothed);
-
-                // ── Debug telemetry (enable with: window.TUNER_DEBUG = true) ─
-                if (window.TUNER_DEBUG) {
-                    const preset  = tuningPresets[state.tuningPreset];
-                    const noteName = preset.notes[state.selectedString] +
-                                     preset.octaves[state.selectedString];
-                    console.log('[Tuner]', {
-                        freq:        state.currentFreq.toFixed(3) + ' Hz',
-                        note:        noteName,
-                        cents:       (state.cents >= 0 ? '+' : '') + state.cents.toFixed(1) + '\u00A2',
-                        rms:         state.rms.toFixed(5),
-                        confidence:  state.pitchConfidence.toFixed(3),
-                        isolate:     state.lockIsolationFrames + '/' + LOCK_ISOLATION.holdFrames,
-                        a4:          state.a4Calibration + ' Hz',
-                        stretch:     state.stretchProfile,
-                        stableLock:  state.stableLocked,
-                        lockFrames:  state.stableLockFrames + '/' + STABLE_LOCK_FRAMES,
-                        ctxState:    state.audioContext ? state.audioContext.state : 'n/a'
-                    });
-                }
-
-                updateDisplay();
-            } else {
-                // Signal too weak - fade harmonics and reset lock
-                for (let i = 0; i < state.harmonicMagnitudes.length; i++) {
-                    state.harmonicMagnitudes[i] *= 0.85;
-                }
-                state.lockFrames       = 0;
-                state.prevLocked       = false;
-                state.stableLockFrames = 0;
-                state.stableLocked     = false;
-                state.lockIsolationFrames = 0;
-                state.pitchConfidence = 0;
-                // Gently return displayedCents toward centre when no signal
-                state.displayedCents  *= 0.92;
-            }
-        }
-
-        } catch (err) {
-            // Log the error but allow the loop to continue on the next frame.
-            console.error('[Tuner] processAudio exception — recovering:', err);
-            state.lockFrames       = 0;
-            state.prevLocked       = false;
-            state.stableLockFrames = 0;
-            state.stableLocked     = false;
-            state.lockIsolationFrames = 0;
-        }
-
-        // Decay lock flash every render frame (60fps)
-        if (state.lockFlash > 0) state.lockFlash--;
-
-        // Render strobe every frame (~60fps) for smooth animation
-        renderStrobe();
-
-        state.animationFrame = requestAnimationFrame(processAudio);
-    }
-
-    // ================================================================
-    // START / STOP
-    // ================================================================
-
-    async function startListening() {
-        showError('');
-
-        const startBtn = document.getElementById('start-btn');
-        startBtn.disabled = true;
-        startBtn.textContent = 'INITIALIZING...';
-
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false
-                }
-            });
-
-            const AC = window.AudioContext || window.webkitAudioContext;
-            state.audioContext = new AC();
-
-            // Browsers (especially mobile) may create the context in a
-            // 'suspended' state even inside a user-gesture handler.
-            // Resume explicitly so audio processing starts immediately.
-            if (state.audioContext.state === 'suspended') {
-                await state.audioContext.resume();
-            }
-
-            state.analyser = state.audioContext.createAnalyser();
-            state.analyser.fftSize = 4096; // Good balance: resolution for E2, low latency
-            state.analyser.smoothingTimeConstant = 0;
-
-            state.inputStream = stream;
-            state.microphone = state.audioContext.createMediaStreamSource(stream);
-
-            // ── Microphone disconnect guard ────────────────────────────
-            // Fires if the user unplugs or the OS revokes the device while
-            // the tuner is running.  Stops cleanly instead of hanging silently.
-            stream.getTracks().forEach(track => {
-                track.addEventListener('ended', () => {
-                    if (state.isListening) {
-                        showError('Microphone disconnected. Click \u25B6 START to reconnect.');
-                        stopListening();
-                    }
-                });
-            });
-
-            // Connect (with or without Note-Lock filter)
-            if (state.noteLockEnabled) {
-                engageNoteLock();
-            } else {
-                state.microphone.connect(state.analyser);
-            }
-
-            state.isListening       = true;
-            state.smoothingBuffer   = [];
-            state.frameCounter      = 0;
-            state.strobePhase       = 0;
-            _lastRenderMs           = 0;
-            state.stableLockFrames  = 0;
-            state.stableLocked      = false;
-            state.lockIsolationFrames = 0;
-            state.pitchConfidence   = 0;
-            state.displayedCents    = 0;
-
-            startBtn.textContent = '\u23F9 STOP';
-            startBtn.className = 'btn btn-stop';
-            startBtn.disabled = false;
-
-            processAudio();
-        } catch (err) {
-            showError('Microphone access denied. Please allow microphone access in your browser settings.');
-            console.error('Microphone error:', err);
-            startBtn.textContent = '\u25B6 START';
-            startBtn.className = 'btn btn-start';
-            startBtn.disabled = false;
-        }
-    }
-
-    function stopListening() {
-        if (state.animationFrame) cancelAnimationFrame(state.animationFrame);
-
-        if (state.noteLockFilter) {
-            state.noteLockFilter.disconnect();
-            state.noteLockFilter = null;
-        }
-        if (state.microphone) state.microphone.disconnect();
-        if (state.inputStream) {
-            state.inputStream.getTracks().forEach(track => track.stop());
-        }
-        if (state.audioContext) state.audioContext.close();
-
-        state.isListening = false;
-        state.audioContext = null;
-        state.analyser = null;
-        state.microphone = null;
-        state.inputStream = null;
-        state.currentFreq = 0;
-        state.cents = 0;
-        state.rms = 0;
-        state.smoothingBuffer = [];
-        state.harmonicMagnitudes = new Float32Array(8);
-        state.lockFrames       = 0;
-        state.lockFlash        = 0;
-        state.prevLocked       = false;
-        state.stableLockFrames = 0;
-        state.stableLocked     = false;
-        state.lockIsolationFrames = 0;
-        state.pitchConfidence = 0;
-        state.lastDebugLogMs   = 0;
-        state.displayedCents   = 0;
-        _lastRenderMs          = 0;
-        // Cancel any pending auto-advance
-        if (state.autoAdvanceTimerId !== null) {
-            clearTimeout(state.autoAdvanceTimerId);
-            state.autoAdvanceTimerId = null;
-        }
-
-        // Clear the stable lock LED
-        const lockEl = document.getElementById('lock-indicator');
-        if (lockEl) lockEl.classList.remove('locked');
-
-        const startBtn = document.getElementById('start-btn');
-        startBtn.textContent = '\u25B6 START';
-        startBtn.className = 'btn btn-start';
-
-        document.getElementById('freq-display').textContent = '0.00 Hz';
-        document.getElementById('cents-display').textContent = '0.0\u00A2';
-        document.getElementById('status-text').textContent = 'READY';
-        document.getElementById('status-text').style.color = '#00ff00';
-        document.getElementById('status-rms').textContent = '0.0';
-
-        const mainEl = document.getElementById('main-display');
-        mainEl.style.borderColor = '#00ff00';
-        mainEl.style.boxShadow = '0 0 20px #00ff0044';
-
-        // Final strobe render (idle state)
-        renderStrobe();
-    }
-
-    function showError(msg) {
-        const el = document.getElementById('error-box');
-        if (msg) {
-            el.textContent = msg;
-            el.style.display = 'block';
-        } else {
-            el.style.display = 'none';
-        }
-    }
-
-    // ================================================================
-    // EVENT LISTENERS
-    // ================================================================
-
-    // Start/Stop
-    document.getElementById('start-btn').addEventListener('click', () => {
-        if (state.isListening) {
-            stopListening();
-        } else {
-            startListening();
-        }
-    });
-
-    // Note-Lock toggle
-    document.getElementById('notelock-btn').addEventListener('click', () => {
-        state.noteLockEnabled = !state.noteLockEnabled;
-
-        const btn = document.getElementById('notelock-btn');
-        if (state.noteLockEnabled) {
-            btn.classList.add('active');
-            btn.textContent = 'NOTE-LOCK ON';
-            if (state.isListening) engageNoteLock();
-        } else {
-            btn.classList.remove('active');
-            btn.textContent = 'NOTE-LOCK';
-            if (state.isListening) disengageNoteLock();
-        }
-        updateSystemStatus();
-    });
-
-    // Settings toggle
-    document.getElementById('settings-btn').addEventListener('click', () => {
-        state.showSettings = !state.showSettings;
-        const panel = document.getElementById('settings-panel');
-        const btn = document.getElementById('settings-btn');
-        if (state.showSettings) {
-            panel.classList.add('active');
-            btn.textContent = 'HIDE SETTINGS';
-        } else {
-            panel.classList.remove('active');
-            btn.textContent = 'SETTINGS';
-        }
-    });
-
-    // Tuning preset
-    document.getElementById('tuning-preset').addEventListener('change', (e) => {
-        state.tuningPreset = e.target.value;
-        state.selectedString = 0;
-        updateStringSelector();
-        updateTargetDisplay();
-        updateStretchDisplay();
-        updateSystemStatus();
-        updateNoteLockFrequency();
-    });
-
-    // Stretch profile
-    document.getElementById('stretch-profile').addEventListener('change', (e) => {
-        state.stretchProfile = e.target.value;
-        updateStringSelector();
-        updateTargetDisplay();
-        updateStretchDisplay();
-        updateSystemStatus();
-        updateNoteLockFrequency();
-    });
-
-    // Guitar type
-    document.getElementById('guitar-type').addEventListener('change', (e) => {
-        state.guitarType = e.target.value;
-        updateStringSelector();
-        updateTargetDisplay();
-        updateSystemStatus();
-    });
-
-    // A4 calibration
-    document.getElementById('a4-calibration').addEventListener('input', (e) => {
-        state.a4Calibration = parseFloat(e.target.value);
-        document.getElementById('a4-value').textContent = state.a4Calibration.toFixed(1);
-        updateStringSelector();
-        updateTargetDisplay();
-        updateSystemStatus();
-        updateNoteLockFrequency();
-    });
-
-    // Temperament
-    document.getElementById('temperament').addEventListener('change', (e) => {
-        state.temperament = e.target.value;
-        updateStringSelector();
-        updateTargetDisplay();
-        updateSystemStatus();
-        updateNoteLockFrequency();
-    });
-
-    // Compensation toggle
-    document.getElementById('compensation').addEventListener('change', (e) => {
-        state.useCompensation = e.target.checked;
-        updateStringSelector();
-        updateTargetDisplay();
-        updateSystemStatus();
-        updateNoteLockFrequency();
-    });
-
-    // Auto-detect toggle
-    document.getElementById('auto-btn').addEventListener('click', () => {
-        state.autoDetect = !state.autoDetect;
-        state.autoDetectHoldFrames = 0;
-        state.autoDetectCandidate = -1;
-
-        const btn = document.getElementById('auto-btn');
-        if (state.autoDetect) {
-            btn.classList.add('active');
-            btn.textContent = 'AUTO';
-        } else {
-            btn.classList.remove('active');
-            btn.textContent = 'MANUAL';
-        }
-        updateSystemStatus();
-    });
-
-    // Sensitivity
-    document.getElementById('sensitivity').addEventListener('input', (e) => {
-        state.sensitivity = parseFloat(e.target.value);
-        document.getElementById('sensitivity-value').textContent = Math.round(state.sensitivity * 100);
-    });
-
-    // ================================================================
-    // CALIBRATION SYSTEM
-    // ================================================================
-
-    // Standard reference frequencies for all 6 guitar strings + A4 reference
-    // Sources: Peterson Strobe Tuners / Equal Temperament A4=440Hz standard
-    const CAL_TONES = [
-        { label: 'A4', freq: 440.00, isRef: true  },
-        { label: 'E2', freq: 82.41,  string: 0    },   // Low E  — Standard open E2
-        { label: 'A2', freq: 110.00, string: 1    },   // A string
-        { label: 'D3', freq: 146.83, string: 2    },   // D string
-        { label: 'G3', freq: 196.00, string: 3    },   // G string
-        { label: 'B3', freq: 246.94, string: 4    },   // B string
-        { label: 'E4', freq: 329.63, string: 5    }    // High E
-    ];
-
-    // Device speakers roll off heavily below ~150 Hz, especially near E2/A2.
-    // Apply a frequency-dependent boost so low strings remain audible enough
-    // for nearby microphones while keeping higher tones at the user-selected
-    // level. The multiplier intentionally exceeds 1.0 because the GainNode can
-    // pre-emphasize the signal before the speaker's own bass loss.
-    const CALIBRATION_SPEAKER_COMPENSATION = Object.freeze({
-        referenceFreq: 440.00,
-        minCompensatedFreq: 82.41,
-        equalLoudnessExponent: 0.50,
-        maxBoostMultiplier: 3.0
-    });
-
-    // Calibration state — fully isolated from main tuner state
-    const calState = {
-        panelOpen:       false,
-        audioCtx:        null,
-        analyser:        null,
-        oscillator:      null,
-        gainToAnalyser:  null,
-        gainToSpeaker:   null,
-        currentFreq:     0,
-        currentLabel:    '',
-        volume:          0.50,
-        collected:       [],     // Median-filtered detection buffer
-        collectTarget:   60,     // Frames to keep (rolling window)
-        animFrame:       null,
-        sweepRunning:    false,
-        sweepStep:       0,
-        sweepResults:    [],
-        sweepTimerId:    null
-    };
-
-    function getCalibrationTone(labelOrFreq) {
-        if (typeof labelOrFreq === 'number' && Number.isFinite(labelOrFreq)) {
-            return { label: '', freq: labelOrFreq };
-        }
-        return CAL_TONES.find(entry => entry.label === labelOrFreq) || null;
-    }
-
-    function getCalibrationVolumeValue() {
-        const volumeInput = document.getElementById('cal-volume');
-        const domValue = volumeInput ? parseFloat(volumeInput.value) : NaN;
-        if (Number.isFinite(domValue)) {
-            calState.volume = Math.max(0, domValue);
-        }
-        return calState.volume;
-    }
-
-    function getCalibrationBoostMultiplier(freq) {
-        if (!Number.isFinite(freq) || freq <= 0) return 1;
-
-        const compensatedFreq = Math.max(
-            freq,
-            CALIBRATION_SPEAKER_COMPENSATION.minCompensatedFreq
-        );
-        const ratio = CALIBRATION_SPEAKER_COMPENSATION.referenceFreq / compensatedFreq;
-
-        return (freq >= CALIBRATION_SPEAKER_COMPENSATION.referenceFreq)
-            ? 1
-            : Math.min(
-                CALIBRATION_SPEAKER_COMPENSATION.maxBoostMultiplier,
-                Math.pow(ratio, CALIBRATION_SPEAKER_COMPENSATION.equalLoudnessExponent)
-            );
-    }
-
-    function getCalibrationSpeakerGain(labelOrFreq, volumeOverride = null) {
-        const tone = getCalibrationTone(labelOrFreq);
-        const baseVolume = Number.isFinite(volumeOverride)
-            ? Math.max(0, volumeOverride)
-            : getCalibrationVolumeValue();
-
-        if (!tone) return baseVolume;
-        // Cap at 1.0: the oscillator output is already at full amplitude (±1.0).
-        // Any gain above 1.0 clips the waveform, distorting zero crossings and
-        // breaking microphone-mode detection. Capping ensures max loudness without clipping.
-        return Math.min(1.0, baseVolume * getCalibrationBoostMultiplier(tone.freq));
-    }
-
-    // ── Audio helpers ────────────────────────────────────────────────
-
-    function calEnsureAudio() {
-        if (calState.audioCtx && calState.audioCtx.state !== 'closed') return;
-        const AC = window.AudioContext || window.webkitAudioContext;
-        calState.audioCtx = new AC();
-        calState.analyser = calState.audioCtx.createAnalyser();
-        calState.analyser.fftSize = 4096;
-        calState.analyser.smoothingTimeConstant = 0;
-    }
-
-    function calPlayTone(freq, label) {
-        calEnsureAudio();
-        calStopTone();
-
-        calState.oscillator = calState.audioCtx.createOscillator();
-        calState.oscillator.type = 'sine';
-        calState.oscillator.frequency.value = freq;
-
-        // Internal path: oscillator → gain → analyser (pitch detection, silent)
-        calState.gainToAnalyser = calState.audioCtx.createGain();
-        calState.gainToAnalyser.gain.value = 0.8;
-
-        // Speaker path: oscillator → gain → destination (audible output)
-        calState.gainToSpeaker = calState.audioCtx.createGain();
-        calState.gainToSpeaker.gain.value = getCalibrationSpeakerGain(label);
-
-        calState.oscillator.connect(calState.gainToAnalyser);
-        calState.gainToAnalyser.connect(calState.analyser);
-        calState.oscillator.connect(calState.gainToSpeaker);
-        calState.gainToSpeaker.connect(calState.audioCtx.destination);
-
-        calState.oscillator.start();
-        calState.currentFreq  = freq;
-        calState.currentLabel = label;
-        calState.collected    = [];
-
-        // Highlight active tone button
-        document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('active'));
-        const activeBtn = document.getElementById('tone-btn-' + label);
-        if (activeBtn) activeBtn.classList.add('active');
-
-        // Start detection loop
-        if (!calState.animFrame) calDetectionLoop();
-
-        updateCalStatusDisplay();
-    }
-
-    function calStopTone() {
-        if (calState.oscillator) {
-            try { calState.oscillator.stop(); } catch (e) {}
-            calState.oscillator.disconnect();
-            calState.oscillator = null;
-        }
-        if (calState.gainToAnalyser) { calState.gainToAnalyser.disconnect(); calState.gainToAnalyser = null; }
-        if (calState.gainToSpeaker)  { calState.gainToSpeaker.disconnect();  calState.gainToSpeaker  = null; }
-
-        calState.currentFreq  = 0;
-        calState.currentLabel = '';
-        calState.collected    = [];
-
-        document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('active'));
-
-        if (calState.animFrame) {
-            cancelAnimationFrame(calState.animFrame);
-            calState.animFrame = null;
-        }
-
-        updateCalStatusDisplay();
-    }
-
-    // ── Zero-crossing frequency detector (calibration only) ──────────
-    //
-    // The NSDF-based detectPitch() fails for pure low-frequency sine waves
-    // because the autocorrelation at very small lags is nearly as high as
-    // at the true period.  For E2 (82 Hz) the NSDF at lag≈34 samples is
-    // ~0.93, which exceeds the 0.8×globalMax selection threshold, so the
-    // algorithm reports a spurious high frequency instead of 82 Hz.
-    //
-    // Zero-crossing detection is immune to that problem and is provably
-    // the most accurate method for pure sine waves: it finds every upward
-    // crossing with sub-sample precision via linear interpolation, then
-    // averages all inter-crossing periods.  For a 4096-sample buffer at
-    // 48 kHz this yields < 0.05 ¢ precision at every guitar string frequency.
-
-    function calDetectFrequency(buffer, sr) {
-        const crossings = [];
-        for (let i = 1; i < buffer.length; i++) {
-            if (buffer[i - 1] <= 0 && buffer[i] > 0) {
-                // Linear interpolation: exact sub-sample crossing position
-                const frac = buffer[i - 1] / (buffer[i - 1] - buffer[i]);
-                crossings.push((i - 1) + frac);
-            }
-        }
-        // Need at least 2 crossings to form one period
-        if (crossings.length < 2) return null;
-
-        // Compute all consecutive inter-crossing periods
-        const periods = [];
-        for (let i = 1; i < crossings.length; i++) {
-            periods.push(crossings[i] - crossings[i - 1]);
-        }
-
-        // Reject outliers more than 10% away from the median period
-        // (guards against noise spikes at startup)
-        const sorted = [...periods].sort((a, b) => a - b);
-        const median = sorted[Math.floor(sorted.length / 2)];
-        const good = periods.filter(p => Math.abs(p - median) / median < 0.10);
-        if (good.length === 0) return null;
-
-        const avgPeriod = good.reduce((s, v) => s + v, 0) / good.length;
-        return sr / avgPeriod;
-    }
-
-    // ── Detection loop ────────────────────────────────────────────────
-
-    function calDetectionLoop() {
-        if (!calState.audioCtx || !calState.analyser || calState.currentFreq === 0) {
-            calState.animFrame = null;
-            return;
-        }
-
-        // ── Dual-mode detection ──────────────────────────────────────────
-        // MICROPHONE MODE: used for Step 2 (single-tone A4 calibration) when
-        // the main tuner is listening.  Plays the tone through speakers and
-        // measures what the microphone actually hears — revealing real offsets.
-        //
-        // INTERNAL MODE: used for Step 3 (Stretch Calibration Sweep) and
-        // whenever the main tuner is not running.  Reads directly from the
-        // oscillator's own analyser path (100% digital loop-back).
-        //
-        // The sweep MUST use internal mode because device speakers typically
-        // cannot reproduce low-frequency tones (E2 ~82 Hz, A2 ~110 Hz) at
-        // sufficient level for the microphone to detect.  Switching to the mic
-        // for the sweep caused E2 and A2 to show "—" (no detection) and D3 to
-        // read an incorrect frequency due to speaker bass rolloff distortion.
-        let pitch = null;
-
-        const usingMic = !calState.sweepRunning && state.isListening && state.analyser;
-
-        if (usingMic) {
-            // Microphone mode — use the live mic input
-            const micBuf = new Float32Array(state.analyser.fftSize);
-            state.analyser.getFloatTimeDomainData(micBuf);
-            const sr = state.audioContext ? state.audioContext.sampleRate : 48000;
-            const micPitch = calDetectFrequency(micBuf, sr);
-
-            // Accept only if within 50 ¢ of the reference tone
-            // (guards against unrelated background sounds being collected)
-            if (micPitch !== null &&
-                Math.abs(1200 * Math.log2(micPitch / calState.currentFreq)) < 50) {
-                pitch = micPitch;
-            }
-        } else {
-            // Internal (oscillator loop-back) mode
-            const buf = new Float32Array(calState.analyser.fftSize);
-            calState.analyser.getFloatTimeDomainData(buf);
-            pitch = calDetectFrequency(buf, calState.audioCtx.sampleRate);
-        }
-
-        if (pitch !== null) {
-            calState.collected.push(pitch);
-            if (calState.collected.length > calState.collectTarget) {
-                calState.collected.shift();
-            }
-            if (state.debugLogging) {
-                const cents = calculateCents(pitch, calState.currentFreq);
-                debugLogDetection(usingMic ? 'calibration-microphone' : 'calibration-internal', pitch, calState.currentFreq, cents);
-            }
-        }
-
-        updateCalStatusDisplay();
-
-        calState.animFrame = (calState.currentFreq > 0)
-            ? requestAnimationFrame(calDetectionLoop)
-            : null;
-    }
-
-    function calMedianDetected() {
-        const d = calState.collected;
-        if (d.length < 5) return null;
-        const sorted = [...d].sort((a, b) => a - b);
-        return sorted[Math.floor(sorted.length / 2)];
-    }
-
-    function calGenerateSineBuffer(freq, sampleRate, fftSize, amplitude, phaseState) {
-        const buffer = new Float32Array(fftSize);
-        const phaseStep = (2 * Math.PI * freq) / sampleRate;
-        const tau = 2 * Math.PI;
-        let phase = phaseState.value || 0;
-
-        for (let i = 0; i < fftSize; i++) {
-            buffer[i] = amplitude * Math.sin(phase);
-            phase += phaseStep;
-            if (phase >= tau) phase -= tau;
-        }
-
-        phaseState.value = phase;
-        return buffer;
-    }
-
-    function calCollectSyntheticSamples(freq, frames = 60, sampleRate = 48000, fftSize = 4096, amplitude = 0.65) {
-        const detected = [];
-        const phaseState = { value: 0 };
-
-        for (let frame = 0; frame < frames; frame++) {
-            const buffer = calGenerateSineBuffer(freq, sampleRate, fftSize, amplitude, phaseState);
-            const pitch = calDetectFrequency(buffer, sampleRate);
-            if (pitch !== null) detected.push(pitch);
-        }
-
-        return detected;
-    }
-
-    function calSimulateCollection(freq, frames = 60, sampleRate = 48000, fftSize = 4096) {
-        const detected = calCollectSyntheticSamples(freq, frames, sampleRate, fftSize);
-
-        if (detected.length < 5) {
-            return { collected: detected.length, median: null, centsError: null };
-        }
-
-        const sorted = [...detected].sort((a, b) => a - b);
-        const median = sorted[Math.floor(sorted.length / 2)];
-
-        return {
-            collected: detected.length,
-            median,
-            centsError: calculateCents(median, freq)
-        };
-    }
-
-    // ── Status display ─────────────────────────────────────────────
-
-    function updateCalStatusDisplay() {
-        const display = document.getElementById('cal-status-display');
-        const autoBtn = document.getElementById('cal-auto-btn');
-        if (!display) return;
-
-        if (calState.currentFreq === 0) {
-            display.innerHTML =
-                '<div style="opacity:0.5;text-align:center;padding:14px 0;">' +
-                'Select a reference tone above to begin calibration</div>';
-            if (autoBtn) autoBtn.disabled = true;
-            return;
-        }
-
-        // Determine current detection mode (sweep always forces internal mode)
-        const usingMic = !calState.sweepRunning && state.isListening && state.analyser;
-        const modeLabel = usingMic
-            ? '<span style="color:#00ff88;">&#9679; MICROPHONE MODE</span>'
-            : calState.sweepRunning
-                ? '<span style="color:#00aaff;">&#9203; INTERNAL MODE (sweep)</span>'
-                : '<span style="color:#ffaa00;">&#9632; INTERNAL MODE</span>';
-        const modeHint = usingMic
-            ? ''
-            : '<div style="color:#ffaa00;font-size:9px;margin-top:4px;line-height:1.5;">' +
-              'Start the tuner (&#9654; START) and play the reference tone through your speakers ' +
-              'so the microphone can measure it. The Auto-Calibrate button activates only in ' +
-              'Microphone Mode when a real offset is detected.</div>';
-
-        const detected   = calMedianDetected();
-        const sampleCount = calState.collected.length;
-        const isReady    = sampleCount >= 10;
-
-        // Show mic RMS in microphone mode so the user can diagnose whether the mic
-        // is picking up the reference tone (a low RMS means the tone is too quiet or
-        // the mic isn't active).
-        const micRmsLine = usingMic
-            ? `<div class="cal-metric">
-            <span class="cal-metric-label">MIC RMS:</span>
-            <span class="cal-metric-value ${state.rms > 0.005 ? 'cal-good' : 'cal-warn'}">${(state.rms * 100).toFixed(1)}% ${state.rms > 0.005 ? '&#9679; SIGNAL OK' : '&#9651; SIGNAL WEAK &mdash; IS VOLUME UP?'}</span>
-        </div>` : '';
-
-        const genLine = `<div class="cal-metric">
-            <span class="cal-metric-label">GENERATING:</span>
-            <span class="cal-metric-value cal-blue">${calState.currentLabel} &mdash; ${calState.currentFreq.toFixed(2)} Hz &nbsp; (pure sine wave)</span>
+    <!-- Readout -->
+    <div class="readout">
+        <div class="readout-item">
+            <div class="readout-label">DETECTED</div>
+            <div class="readout-value freq" id="freq-display">--- Hz</div>
         </div>
-        <div class="cal-metric">
-            <span class="cal-metric-label">INPUT:</span>
-            <span class="cal-metric-value">${modeLabel}</span>
+        <div class="readout-item">
+            <div class="readout-label">CENTS</div>
+            <div class="readout-value" id="cents-display" style="color:#00ff00">+0</div>
         </div>
-        ${micRmsLine}`;
+        <div class="readout-item">
+            <div class="readout-label">TARGET</div>
+            <div class="readout-value freq" id="target-display">--- Hz</div>
+        </div>
+    </div>
 
-        let body;
+    <!-- Cents bar -->
+    <div class="cents-bar-wrap">
+        <div class="cents-bar-ticks" id="cents-ticks"></div>
+        <div class="cents-bar-center"></div>
+        <div class="cents-needle" id="cents-needle"></div>
+    </div>
 
-        if (!isReady) {
-            body = `
-            <div class="cal-metric">
-                <span class="cal-metric-label">DETECTING:</span>
-                <span class="cal-metric-value cal-warn">ANALYZING&hellip; (${sampleCount} / ${calState.collectTarget} samples)</span>
-            </div>
-            <div class="cal-metric">
-                <span class="cal-metric-label">STATUS:</span>
-                <span class="cal-metric-value cal-warn">COLLECTING DATA &mdash; PLEASE WAIT</span>
-            </div>
-            ${modeHint}`;
-            if (autoBtn) autoBtn.disabled = true;
-        } else {
-            const devHz    = detected - calState.currentFreq;
-            const devCents = 1200 * Math.log2(detected / calState.currentFreq);
-            const absC     = Math.abs(devCents);
-            const cls      = absC < 0.5 ? 'cal-good' : absC < 2.0 ? 'cal-warn' : 'cal-bad';
-            const autoCalEligible = usingMic && calState.currentLabel === 'A4' && absC >= 0.5;
-            const status   = absC < 0.5
-                ? 'CALIBRATED &#10003;'
-                : absC < 2.0
-                    ? 'MINOR OFFSET &mdash; CONSIDER AUTO-CALIBRATE'
-                    : 'OFFSET DETECTED &mdash; AUTO-CALIBRATE RECOMMENDED';
-            const hSign = devHz   >= 0 ? '+' : '';
-            const cSign = devCents >= 0 ? '+' : '';
+    <!-- String selector -->
+    <div class="string-row" id="string-row"></div>
 
-            body = `
-            <div class="cal-metric">
-                <span class="cal-metric-label">DETECTED:</span>
-                <span class="cal-metric-value cal-good">${detected.toFixed(3)} Hz &nbsp; (${sampleCount} samples)</span>
-            </div>
-            <div class="cal-metric">
-                <span class="cal-metric-label">DEVIATION:</span>
-                <span class="cal-metric-value ${cls}">${hSign}${devHz.toFixed(3)} Hz &nbsp; ${cSign}${devCents.toFixed(2)}&cent;</span>
-            </div>
-            <div class="cal-metric">
-                <span class="cal-metric-label">STATUS:</span>
-                <span class="cal-metric-value ${cls}">${status}</span>
-            </div>
-            <div class="cal-metric">
-                <span class="cal-metric-label">AUTO-CAL:</span>
-                <span class="cal-metric-value ${autoCalEligible ? 'cal-good' : 'cal-warn'}">${autoCalEligible ? 'READY (A4 microphone match)' : 'AVAILABLE ONLY FOR A4 IN MICROPHONE MODE'}</span>
-            </div>
-            ${modeHint}`;
-            if (autoBtn) autoBtn.disabled = !autoCalEligible;
+    <!-- Controls -->
+    <div class="controls">
+        <button class="btn btn-start" id="btn-start">Start</button>
+        <button class="btn btn-toggle" id="btn-notelock">Note Lock</button>
+        <button class="btn btn-toggle" id="btn-settings">Settings</button>
+    </div>
+
+    <!-- Settings -->
+    <div class="settings-panel" id="settings-panel">
+        <div class="setting-row">
+            <label>A4 Reference</label>
+            <input type="number" id="ref-hz" value="440" min="380" max="500" step="0.5">
+            <span class="setting-val">Hz</span>
+        </div>
+        <div class="setting-row">
+            <label>Gain</label>
+            <input type="range" id="gain-slider" min="1" max="8" step="0.5" value="2">
+            <span class="setting-val" id="gain-val">×2</span>
+        </div>
+        <div class="setting-row">
+            <label>Mode</label>
+            <select id="mode-select" style="background:#000;color:#00ff00;border:1px solid #003300;padding:4px;font-family:monospace;font-size:12px;">
+                <option value="guitar">Guitar (EADGBE)</option>
+                <option value="chromatic">Chromatic</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="status-msg" id="status-msg">Press START to begin</div>
+</div>
+
+<script>
+// ─── Music Theory ────────────────────────────────────────────────────────────
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+function freqToMidi(freq) {
+    return 69 + 12 * Math.log2(freq / 440);
+}
+
+function midiToFreq(midi, refA4 = 440) {
+    return refA4 * Math.pow(2, (midi - 69) / 12);
+}
+
+function noteFromFreq(freq, refA4 = 440) {
+    const midi = freqToMidi(freq);
+    const rounded = Math.round(midi);
+    const cents = (midi - rounded) * 100;
+    const name = NOTE_NAMES[((rounded % 12) + 12) % 12];
+    const octave = Math.floor(rounded / 12) - 1;
+    const target = midiToFreq(rounded, refA4);
+    return { name, octave, cents, target, midi: rounded };
+}
+
+// Guitar standard tuning strings
+const GUITAR_STRINGS = [
+    { label: 'E2', midi: 40 },
+    { label: 'A2', midi: 45 },
+    { label: 'D3', midi: 50 },
+    { label: 'G3', midi: 55 },
+    { label: 'B3', midi: 59 },
+    { label: 'E4', midi: 64 },
+];
+
+// ─── YIN Pitch Detection ─────────────────────────────────────────────────────
+// Threshold between 0.1 (strict) and 0.2 (lenient). 0.15 works well for guitar.
+function yinDetect(buf, sampleRate, threshold = 0.15) {
+    const N = buf.length;
+    const half = Math.floor(N / 2);
+
+    // Frequency bounds for guitar: 70 Hz – 1200 Hz
+    const tauMin = Math.floor(sampleRate / 1200);
+    const tauMax = Math.min(half, Math.floor(sampleRate / 70));
+
+    // Step 1: Difference function (d)
+    const d = new Float32Array(tauMax + 1);
+    for (let tau = 1; tau <= tauMax; tau++) {
+        let sum = 0;
+        for (let j = 0; j < half; j++) {
+            const diff = buf[j] - buf[j + tau];
+            sum += diff * diff;
         }
-
-        display.innerHTML = genLine + body;
+        d[tau] = sum;
     }
 
-    // ── Auto-calibrate A4 ─────────────────────────────────────────
-
-    function calAutoCalibrate() {
-        const detected = calMedianDetected();
-        const usingMic = !calState.sweepRunning && state.isListening && state.analyser;
-        if (!detected || calState.currentFreq === 0 || calState.currentLabel !== 'A4' || !usingMic) {
-            calShowMessage('Auto-calibrate only runs for A4 while microphone mode is active.', 'cal-warn');
-            return;
-        }
-
-        // Scale A4 so that the detected frequency equals the generated reference.
-        // Formula: newA4 = currentA4 × (expectedFreq / detectedFreq)
-        const correctionFactor = calState.currentFreq / detected;
-        const newA4 = Math.max(430, Math.min(450,
-            parseFloat((state.a4Calibration * correctionFactor).toFixed(1))
-        ));
-
-        const devCents = 1200 * Math.log2(calState.currentFreq / detected);
-        const oldA4    = state.a4Calibration;
-
-        state.a4Calibration = newA4;
-        document.getElementById('a4-calibration').value = newA4;
-        document.getElementById('a4-value').textContent  = newA4.toFixed(1);
-        document.getElementById('cal-a4-display').textContent = newA4.toFixed(1) + ' Hz';
-
-        updateStringSelector();
-        updateTargetDisplay();
-        updateSystemStatus();
-        updateNoteLockFrequency();
-
-        // Reset buffer so the updated A4 is immediately verified
-        calState.collected = [];
-
-        const sign = devCents >= 0 ? '+' : '';
-        calShowMessage(
-            `A4 adjusted: ${oldA4.toFixed(1)} \u2192 ${newA4.toFixed(1)} Hz  (corrected ${sign}${devCents.toFixed(2)}\u00A2)`,
-            'cal-good'
-        );
+    // Step 2: Cumulative mean normalized difference (cmnd)
+    const cmnd = new Float32Array(tauMax + 1);
+    cmnd[0] = 1;
+    let runSum = 0;
+    for (let tau = 1; tau <= tauMax; tau++) {
+        runSum += d[tau];
+        cmnd[tau] = runSum > 0 ? d[tau] * tau / runSum : 1;
     }
 
-    function calShowMessage(msg, cls) {
-        const el = document.getElementById('cal-message');
-        if (!el) return;
-        el.textContent = msg;
-        el.className   = 'cal-message ' + (cls || '');
-        el.style.display = 'block';
-        clearTimeout(el._timer);
-        el._timer = setTimeout(() => { el.style.display = 'none'; }, 5000);
+    // Step 3: First local minimum below threshold (search from tauMin)
+    let tau = tauMin;
+    while (tau <= tauMax) {
+        if (cmnd[tau] < threshold) {
+            // Slide to the actual minimum of this valley
+            while (tau + 1 <= tauMax && cmnd[tau + 1] < cmnd[tau]) tau++;
+            break;
+        }
+        tau++;
     }
 
-    // ── Stretch Sweetening Sweep ──────────────────────────────────
+    if (tau > tauMax) return { freq: -1, confidence: 0 };
 
-    function runStretchCalSweep() {
-        if (calState.sweepRunning) return;
-
-        calState.sweepRunning = true;
-        calState.sweepStep    = 0;
-        calState.sweepResults = [];
-
-        const sweepBtn     = document.getElementById('cal-sweep-btn');
-        const resultsEl    = document.getElementById('stretch-cal-results');
-        const progressEl   = document.getElementById('cal-sweep-progress');
-
-        if (sweepBtn)   { sweepBtn.disabled = true; sweepBtn.textContent = 'SWEEP IN PROGRESS\u2026'; }
-        if (resultsEl)  resultsEl.style.display = 'none';
-        if (progressEl) progressEl.style.display = 'block';
-
-        runStretchCalStep();
+    // Step 4: Parabolic interpolation for sub-sample accuracy
+    const x0 = Math.max(1, tau - 1);
+    const x2 = Math.min(tauMax, tau + 1);
+    let betterTau;
+    if (x0 === tau) {
+        betterTau = cmnd[tau] <= cmnd[x2] ? tau : x2;
+    } else if (x2 === tau) {
+        betterTau = cmnd[tau] <= cmnd[x0] ? tau : x0;
+    } else {
+        const s0 = cmnd[x0], s1 = cmnd[tau], s2 = cmnd[x2];
+        const denom = 2 * (2 * s1 - s2 - s0);
+        betterTau = denom !== 0 ? tau + (s2 - s0) / denom : tau;
     }
 
-    function runStretchCalStep() {
-        const preset     = tuningPresets[state.tuningPreset];
-        const numStrings = preset.notes.length;
+    const freq = sampleRate / betterTau;
+    const confidence = 1 - cmnd[tau]; // 0–1, higher = more confident
+    return { freq, confidence };
+}
 
-        if (calState.sweepStep >= numStrings) {
-            // Sweep complete
-            calState.sweepRunning = false;
-            calStopTone();
+// ─── App State ────────────────────────────────────────────────────────────────
+const state = {
+    running: false,
+    noteLock: false,
+    lockedMidi: null,       // midi note locked when note-lock is ON
+    refA4: 440,
+    gain: 2,
+    mode: 'guitar',
+    activeString: null,     // index into GUITAR_STRINGS, or null = chromatic
 
-            const sweepBtn   = document.getElementById('cal-sweep-btn');
-            const progressEl = document.getElementById('cal-sweep-progress');
-            if (sweepBtn)   { sweepBtn.disabled = false; sweepBtn.textContent = '\u25BA\u25BA RUN STRETCH CALIBRATION SWEEP (ALL 6 STRINGS)'; }
-            if (progressEl) progressEl.style.display = 'none';
+    // Display
+    detectedFreq: 0,
+    detectedNote: null,
+    strobePhase: 0,
+    lastFrameTime: 0,
+    animFrameId: null,
 
-            renderStretchCalResults();
-            calShowMessage('Stretch sweep complete. Review results below.', 'cal-good');
-            return;
-        }
+    // Audio
+    audioCtx: null,
+    analyser: null,
+    gainNode: null,
+    stream: null,
+    timeBuf: null,
+};
 
-        const si         = calState.sweepStep;
-        const targetFreq = getTargetFrequency(si);
-        const label      = preset.notes[si] + preset.octaves[si];
+// ─── DOM References ───────────────────────────────────────────────────────────
+const canvas    = document.getElementById('strobe-canvas');
+const ctx2d     = canvas.getContext('2d');
+const elNote    = document.getElementById('note-name');
+const elOctave  = document.getElementById('note-octave');
+const elHint    = document.getElementById('play-hint');
+const elFreq    = document.getElementById('freq-display');
+const elCents   = document.getElementById('cents-display');
+const elTarget  = document.getElementById('target-display');
+const elNeedle  = document.getElementById('cents-needle');
+const elStatus  = document.getElementById('status-msg');
+const elError   = document.getElementById('error-box');
+const btnStart  = document.getElementById('btn-start');
+const btnLock   = document.getElementById('btn-notelock');
+const btnSett   = document.getElementById('btn-settings');
+const settPanel = document.getElementById('settings-panel');
+const refHzEl   = document.getElementById('ref-hz');
+const gainSlider = document.getElementById('gain-slider');
+const gainValEl = document.getElementById('gain-val');
+const modeSelect = document.getElementById('mode-select');
+const stringRow = document.getElementById('string-row');
 
-        const progressEl = document.getElementById('cal-sweep-progress');
-        if (progressEl) {
-            progressEl.textContent =
-                `Testing string ${si + 1}/${numStrings}: ${label} \u2014 ${targetFreq.toFixed(2)} Hz`;
-        }
-
-        calPlayTone(targetFreq, label);
-
-        // Collect for 2.5 seconds then advance to next string
-        clearTimeout(calState.sweepTimerId);
-        calState.sweepTimerId = setTimeout(() => {
-            const detected = calMedianDetected();
-            calState.sweepResults.push({
-                stringIndex:   si,
-                note:          label,
-                targetFreq:    targetFreq,
-                detectedFreq:  detected,
-                devCents:      detected ? calculateCents(detected, targetFreq) : null,
-                stretchOffset: stretchProfiles[state.stretchProfile].offsets[si],
-                compOffset:    state.useCompensation
-                    ? (stringCompensation[state.guitarType][si] || 0)
-                    : 0
-            });
-
-            calState.sweepStep++;
-            runStretchCalStep();
-        }, 2500);
+// ─── Build cents-bar ticks ─────────────────────────────────────────────────
+(function buildTicks() {
+    const container = document.getElementById('cents-ticks');
+    for (let c = -50; c <= 50; c += 10) {
+        const s = document.createElement('span');
+        s.style.left = ((c + 50) / 100 * 100) + '%';
+        container.appendChild(s);
     }
+})();
 
-    function renderStretchCalResults() {
-        const el = document.getElementById('stretch-cal-results');
-        if (!el || calState.sweepResults.length === 0) return;
-
-        let html = '';
-
-        for (const r of calState.sweepResults) {
-            const hasData  = r.detectedFreq !== null;
-            const absC     = hasData ? Math.abs(r.devCents) : null;
-            const cls      = !hasData ? 'cal-warn'
-                           : absC < 1.0 ? 'cal-good'
-                           : absC < 3.0 ? 'cal-warn'
-                           : 'cal-bad';
-            const detStr   = hasData ? r.detectedFreq.toFixed(2) + ' Hz' : '&mdash;';
-            const devStr   = hasData
-                ? (r.devCents >= 0 ? '+' : '') + r.devCents.toFixed(2) + '&cent;'
-                : '&mdash;';
-            const stretchTxt = r.stretchOffset !== 0
-                ? `<div style="font-size:8px;color:#ffff00;margin-top:1px;">${r.stretchOffset > 0 ? '+' : ''}${r.stretchOffset.toFixed(1)}&cent; str</div>`
-                : '';
-
-            html += `<div class="stretch-cal-item">
-                <div class="sci-note">${r.note}</div>
-                <div class="sci-target">${r.targetFreq.toFixed(2)} Hz</div>
-                ${stretchTxt}
-                <div class="sci-det ${cls}">${detStr}</div>
-                <div class="sci-dev ${cls}">${devStr}</div>
-            </div>`;
-        }
-
-        el.innerHTML    = html;
-        el.style.display = 'grid';
-    }
-
-    // ── Panel open / close ────────────────────────────────────────
-
-    function openCalibrationPanel() {
-        calState.panelOpen = true;
-        document.getElementById('calibration-panel').classList.add('active');
-        document.getElementById('cal-btn').textContent = 'HIDE CAL';
-        document.getElementById('cal-btn').classList.add('active');
-
-        // Sync dynamic labels with current settings
-        document.getElementById('cal-stretch-name').textContent =
-            stretchProfiles[state.stretchProfile].name;
-        document.getElementById('cal-guitar-name').textContent =
-            state.guitarType.charAt(0).toUpperCase() + state.guitarType.slice(1);
-        document.getElementById('cal-a4-display').textContent =
-            state.a4Calibration.toFixed(1) + ' Hz';
-
-        // Sync volume slider
-        const volEl = document.getElementById('cal-volume');
-        if (volEl) {
-            volEl.value = calState.volume;
-            document.getElementById('cal-volume-value').textContent =
-                Math.round(calState.volume * 100) + '%';
-        }
-
-        updateCalStatusDisplay();
-    }
-
-    function closeCalibrationPanel() {
-        calState.panelOpen = false;
-        calStopTone();
-
-        if (calState.sweepTimerId) {
-            clearTimeout(calState.sweepTimerId);
-            calState.sweepTimerId = null;
-            calState.sweepRunning = false;
-        }
-
-        const sweepBtn = document.getElementById('cal-sweep-btn');
-        if (sweepBtn) {
-            sweepBtn.disabled    = false;
-            sweepBtn.textContent = '\u25BA\u25BA RUN STRETCH CALIBRATION SWEEP (ALL 6 STRINGS)';
-        }
-
-        document.getElementById('calibration-panel').classList.remove('active');
-        document.getElementById('cal-btn').textContent = 'CALIBRATE';
-        document.getElementById('cal-btn').classList.remove('active');
-    }
-
-    // ── Calibration event listeners ──────────────────────────────
-
-    // Panel toggle
-    document.getElementById('cal-btn').addEventListener('click', () => {
-        calState.panelOpen ? closeCalibrationPanel() : openCalibrationPanel();
-    });
-
-    // Tone buttons (click active tone to stop; click different tone to switch)
-    CAL_TONES.forEach(tone => {
-        const btn = document.getElementById('tone-btn-' + tone.label);
-        if (!btn) return;
+// ─── Build guitar string buttons ──────────────────────────────────────────
+function buildStringButtons() {
+    stringRow.innerHTML = '';
+    GUITAR_STRINGS.forEach((gs, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'string-btn' + (state.activeString === i ? ' active' : '');
+        const freq = midiToFreq(gs.midi, state.refA4);
+        btn.innerHTML = `<span class="str-note">${gs.label}</span>
+                         <span class="str-freq">${freq.toFixed(1)}Hz</span>`;
         btn.addEventListener('click', () => {
-            if (calState.currentLabel === tone.label) {
-                calStopTone();
-            } else {
-                calPlayTone(tone.freq, tone.label);
+            if (state.mode !== 'guitar') return;
+            state.activeString = state.activeString === i ? null : i;
+            buildStringButtons();
+            if (state.activeString !== null) {
+                state.lockedMidi = GUITAR_STRINGS[state.activeString].midi;
             }
         });
+        stringRow.appendChild(btn);
     });
+}
 
-    // Stop button
-    document.getElementById('cal-stop-btn').addEventListener('click', calStopTone);
+// ─── Strobe Rendering ────────────────────────────────────────────────────────
+const RINGS = [
+    { segs: 12, gap: 0.12 },  // fundamental
+    { segs: 18, gap: 0.10 },  // 2nd harmonic
+    { segs: 24, gap: 0.09 },  // 3rd harmonic
+    { segs: 30, gap: 0.08 },  // 4th harmonic
+];
 
-    // Auto-calibrate
-    document.getElementById('cal-auto-btn').addEventListener('click', calAutoCalibrate);
+function renderStrobe(cents, hasSignal) {
+    const dpr    = window.devicePixelRatio || 1;
+    const cssW   = canvas.parentElement.offsetWidth || 300;
+    const SIZE   = Math.min(cssW, 300);
+    if (canvas.width !== SIZE * dpr || canvas.height !== SIZE * dpr) {
+        canvas.width  = SIZE * dpr;
+        canvas.height = SIZE * dpr;
+        canvas.style.width  = SIZE + 'px';
+        canvas.style.height = SIZE + 'px';
+    }
+    ctx2d.save();
+    ctx2d.scale(dpr, dpr);
 
-    // Volume control
-    document.getElementById('cal-volume').addEventListener('input', (e) => {
-        calState.volume = parseFloat(e.target.value);
-        const volume = getCalibrationVolumeValue();
-        document.getElementById('cal-volume-value').textContent =
-            Math.round(volume * 100) + '%';
-        if (calState.gainToSpeaker) {
-            calState.gainToSpeaker.gain.value = getCalibrationSpeakerGain(calState.currentLabel, volume);
+    const cx = SIZE / 2, cy = SIZE / 2;
+    const maxR = SIZE / 2 - 4;
+
+    // Background circle
+    ctx2d.clearRect(0, 0, SIZE, SIZE);
+    ctx2d.fillStyle = '#050f05';
+    ctx2d.beginPath();
+    ctx2d.arc(cx, cy, maxR, 0, Math.PI * 2);
+    ctx2d.fill();
+
+    // Pick color from cents
+    let r = 0, g = 255, b = 0;
+    if (hasSignal) {
+        const a = Math.abs(cents);
+        if (a < 5) {
+            r = 0; g = 255; b = 0;           // green = in tune
+        } else if (cents > 0) {
+            r = 255; g = Math.max(0, 255 - (a - 5) * 8); b = 0; // orange/red = sharp
+        } else {
+            r = 0; g = Math.max(0, 255 - (a - 5) * 6); b = 255; // blue = flat
+        }
+    }
+
+    // Draw rings
+    const centerR  = maxR * 0.20;
+    const ringBand = (maxR - centerR) / RINGS.length;
+
+    RINGS.forEach((ring, h) => {
+        const innerR = centerR + h * ringBand + ringBand * 0.08;
+        const outerR = centerR + (h + 1) * ringBand - ringBand * 0.08;
+        const brightness = hasSignal ? (1 - h * 0.15) : 0.25;
+        // Harmonics rotate faster
+        const phase = state.strobePhase * (h + 1);
+        const segAngle = (Math.PI * 2) / ring.segs;
+
+        for (let s = 0; s < ring.segs; s++) {
+            if (s % 2 === 0) {
+                const a0 = s * segAngle + phase + ring.gap;
+                const a1 = (s + 1) * segAngle + phase - ring.gap;
+                ctx2d.beginPath();
+                ctx2d.arc(cx, cy, outerR, a0, a1);
+                ctx2d.arc(cx, cy, innerR, a1, a0, true);
+                ctx2d.closePath();
+                ctx2d.fillStyle = `rgba(${r},${g},${b},${brightness})`;
+                ctx2d.fill();
+            }
         }
     });
 
-    // Stretch sweep
-    document.getElementById('cal-sweep-btn').addEventListener('click', runStretchCalSweep);
+    // Outer border ring
+    ctx2d.strokeStyle = `rgba(${r},${g},${b},0.5)`;
+    ctx2d.lineWidth = 2;
+    ctx2d.beginPath();
+    ctx2d.arc(cx, cy, maxR - 1, 0, Math.PI * 2);
+    ctx2d.stroke();
 
-    // ================================================================
-    // INITIALIZATION
-    // ================================================================
+    ctx2d.restore();
+}
 
-    function initPrecisionTicks() {
-        const container = document.getElementById('precision-ticks');
-        // Create tick marks at regular intervals
-        const ticks = [-50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50];
-        ticks.forEach(cents => {
-            const tick = document.createElement('div');
-            tick.className = 'precision-tick' + (cents === 0 ? ' center' : '');
-            tick.style.left = (50 + (cents / 50) * 48) + '%';
-            container.appendChild(tick);
-        });
+// ─── Update UI readouts ───────────────────────────────────────────────────────
+function updateReadout(note, freq, hasSignal) {
+    if (!hasSignal || !note) {
+        elNote.textContent   = '--';
+        elOctave.textContent = '';
+        elHint.textContent   = state.running ? 'PLAY A NOTE' : '';
+        elFreq.textContent   = '--- Hz';
+        elCents.textContent  = '+0';
+        elTarget.textContent = '--- Hz';
+        elNote.style.color   = '#00ff00';
+        elCents.style.color  = '#00ff00';
+        elNeedle.style.left  = '50%';
+        elNeedle.style.background = '#00ff00';
+        return;
     }
 
-    function cacheElements() {
-        _el.statusText    = document.getElementById('status-text');
-        _el.freqDisplay   = document.getElementById('freq-display');
-        _el.centsDisplay  = document.getElementById('cents-display');
-        _el.mainDisplay   = document.getElementById('main-display');
-        _el.noteOverlay   = document.getElementById('strobe-note-overlay');
-        _el.precIndicator = document.getElementById('precision-indicator');
-        _el.statusRms     = document.getElementById('status-rms');
-        _el.lockIndicator = document.getElementById('lock-indicator');
-        _el.lockLabel     = document.getElementById('lock-label');
+    const cents = note.cents;
+    const a     = Math.abs(cents);
+    const color = a < 5 ? '#00ff00' : (a < 15 ? '#ffcc00' : (cents > 0 ? '#ff4400' : '#44aaff'));
+
+    elNote.textContent   = note.name;
+    elOctave.textContent = note.octave;
+    elHint.textContent   = a < 3 ? 'IN TUNE' : (cents > 0 ? 'SHARP' : 'FLAT');
+    elNote.style.color   = color;
+
+    elFreq.textContent   = freq.toFixed(2) + ' Hz';
+    elCents.textContent  = (cents >= 0 ? '+' : '') + cents.toFixed(1);
+    elCents.style.color  = color;
+    elTarget.textContent = note.target.toFixed(2) + ' Hz';
+
+    // Needle: 0% = -50 cents, 100% = +50 cents
+    const pct = Math.max(0, Math.min(100, (cents + 50)));
+    elNeedle.style.left       = pct + '%';
+    elNeedle.style.background = color;
+    elNeedle.style.boxShadow  = `0 0 8px ${color}`;
+}
+
+// ─── Animation Loop ───────────────────────────────────────────────────────────
+function animate(ts) {
+    state.animFrameId = requestAnimationFrame(animate);
+
+    const dt = state.lastFrameTime > 0 ? Math.min((ts - state.lastFrameTime) / 1000, 0.05) : 0.016;
+    state.lastFrameTime = ts;
+
+    // Read audio if running
+    let freq = 0, confidence = 0;
+    if (state.running && state.analyser && state.timeBuf) {
+        state.analyser.getFloatTimeDomainData(state.timeBuf);
+
+        // RMS signal level
+        let rms = 0;
+        for (let i = 0; i < state.timeBuf.length; i++) rms += state.timeBuf[i] ** 2;
+        rms = Math.sqrt(rms / state.timeBuf.length);
+
+        if (rms > 0.005) {
+            const result = yinDetect(state.timeBuf, state.audioCtx.sampleRate);
+            freq       = result.freq;
+            confidence = result.confidence;
+        }
     }
 
-    function init() {
-        window.precisionTunerDebug = {
-            state,
-            getTargetFrequency,
-            calculateCents,
-            detectPitch,
-            detectPitchMPM,
-            calDetectFrequency,
-            getCalibrationBoostMultiplier,
-            getCalibrationSpeakerGain,
-            calSimulateCollection,
-            calCollectSyntheticSamples,
-            enableLogs() {
-                state.debugLogging = true;
-                console.info('Precision Tuner debug logging enabled.');
-            },
-            disableLogs() {
-                state.debugLogging = false;
-                console.info('Precision Tuner debug logging disabled.');
+    const hasSignal = freq > 70 && freq < 1200 && confidence > 0.5;
+    let displayNote = null;
+
+    if (hasSignal) {
+        // Note-lock / string mode: snap to nearest allowed note
+        if (state.mode === 'guitar' && state.activeString !== null) {
+            // Force target to selected string's note
+            const targetMidi = GUITAR_STRINGS[state.activeString].midi;
+            const targetFreq = midiToFreq(targetMidi, state.refA4);
+            const detectedMidi = 69 + 12 * Math.log2(freq / state.refA4);
+            const centsOff = (detectedMidi - targetMidi) * 100;
+            // Only show if within ±100 cents of this string
+            if (Math.abs(centsOff) <= 100) {
+                displayNote = {
+                    name: GUITAR_STRINGS[state.activeString].label.replace(/\d/, ''),
+                    octave: GUITAR_STRINGS[state.activeString].label.match(/\d/)[0],
+                    cents: centsOff,
+                    target: targetFreq,
+                };
+            } else {
+                // Out of range for this string – use chromatic
+                displayNote = noteFromFreq(freq, state.refA4);
+            }
+        } else if (state.noteLock && state.lockedMidi !== null) {
+            // Note-lock: bias toward locked note
+            const targetFreq = midiToFreq(state.lockedMidi, state.refA4);
+            const detectedMidi = 69 + 12 * Math.log2(freq / state.refA4);
+            const centsOff = (detectedMidi - state.lockedMidi) * 100;
+            if (Math.abs(centsOff) <= 70) {
+                const nm = NOTE_NAMES[((state.lockedMidi % 12) + 12) % 12];
+                const oct = Math.floor(state.lockedMidi / 12) - 1;
+                displayNote = { name: nm, octave: oct, cents: centsOff, target: targetFreq };
+            } else {
+                displayNote = noteFromFreq(freq, state.refA4);
+            }
+        } else {
+            displayNote = noteFromFreq(freq, state.refA4);
+            // Auto-update lockedMidi so note-lock sticks to most recent note
+            if (state.noteLock && displayNote) {
+                state.lockedMidi = displayNote.midi;
+            }
+        }
+    }
+
+    // Update strobe phase
+    // 1 rotation/s when 100 cents off. Multiplied by PI*2 so phase is in radians.
+    if (hasSignal && displayNote) {
+        state.strobePhase += (displayNote.cents / 100) * Math.PI * 2 * dt;
+    }
+
+    renderStrobe(displayNote ? displayNote.cents : 0, hasSignal && displayNote !== null);
+    updateReadout(displayNote, freq, hasSignal && displayNote !== null);
+}
+
+// ─── Audio Setup ──────────────────────────────────────────────────────────────
+async function startAudio() {
+    elError.classList.remove('show');
+    try {
+        // Request stereo mono microphone, prefer high quality
+        const constraints = {
+            audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl:  false,
+                channelCount: 1,
             }
         };
-        cacheElements();
-        initPrecisionTicks();
-        updateStringSelector();
-        updateTargetDisplay();
-        updateStretchDisplay();
-        updateSystemStatus();
-        renderStrobe(); // Initial idle render
+        state.stream    = await navigator.mediaDevices.getUserMedia(constraints);
+        state.audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+
+        const source = state.audioCtx.createMediaStreamSource(state.stream);
+
+        // Gain node (user-adjustable boost for quiet instruments)
+        state.gainNode = state.audioCtx.createGain();
+        state.gainNode.gain.value = state.gain;
+
+        // High-pass at 60 Hz to remove rumble
+        const hp = state.audioCtx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 60;
+        hp.Q.value = 0.5;
+
+        // Low-pass at 1400 Hz (2× highest guitar open string + headroom)
+        const lp = state.audioCtx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 1400;
+        lp.Q.value = 0.5;
+
+        state.analyser = state.audioCtx.createAnalyser();
+        state.analyser.fftSize = 4096;
+        state.analyser.smoothingTimeConstant = 0;
+
+        source.connect(hp);
+        hp.connect(lp);
+        lp.connect(state.gainNode);
+        state.gainNode.connect(state.analyser);
+
+        state.timeBuf = new Float32Array(state.analyser.fftSize);
+        state.running = true;
+        elStatus.textContent = 'LISTENING — play any note';
+        btnStart.textContent = 'Stop';
+        btnStart.className   = 'btn btn-stop';
+    } catch (e) {
+        elError.classList.add('show');
+        elStatus.textContent = 'Microphone access failed';
+        console.error(e);
     }
+}
 
-    init();
+function stopAudio() {
+    state.running = false;
+    if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
+    if (state.audioCtx) { state.audioCtx.close(); state.audioCtx = null; }
+    state.analyser  = null;
+    state.gainNode  = null;
+    state.timeBuf   = null;
+    state.detectedFreq = 0;
+    btnStart.textContent = 'Start';
+    btnStart.className   = 'btn btn-start';
+    elStatus.textContent = 'Press START to begin';
+}
 
-    // ================================================================
-    // BACKGROUND TAB / VISIBILITY CHANGE
-    // ================================================================
-    // Browsers throttle requestAnimationFrame when the tab is hidden,
-    // which pauses the strobe render and pitch-detection display updates.
-    // The Web Audio API continues processing audio in the background so
-    // no samples are lost — display simply resumes when the tab returns.
-    // We show a brief advisory so the user understands the behaviour.
-    (function () {
-        let hiddenBanner = null;
+// ─── Event Listeners ──────────────────────────────────────────────────────────
+btnStart.addEventListener('click', () => {
+    if (state.running) stopAudio();
+    else startAudio();
+});
 
-        function ensureBanner() {
-            if (!hiddenBanner) {
-                hiddenBanner = document.createElement('div');
-                hiddenBanner.id = 'bg-tab-banner';
-                hiddenBanner.style.cssText = [
-                    'position:fixed', 'top:0', 'left:0', 'right:0',
-                    'background:#111', 'color:#ffaa00',
-                    'text-align:center', 'padding:8px',
-                    'font:bold 11px/1 monospace', 'letter-spacing:1px',
-                    'z-index:9999', 'display:none'
-                ].join(';');
-                hiddenBanner.textContent =
-                    '\u23F8 DISPLAY PAUSED \u2014 Audio processing continues in background. Return to this tab to resume display.';
-                document.body.appendChild(hiddenBanner);
-            }
-            return hiddenBanner;
-        }
+btnLock.addEventListener('click', () => {
+    state.noteLock = !state.noteLock;
+    btnLock.classList.toggle('active', state.noteLock);
+    if (state.noteLock && !state.lockedMidi) {
+        // If nothing locked yet, lock to A4
+        state.lockedMidi = 69;
+    }
+    elStatus.textContent = state.noteLock ? 'NOTE LOCK ON' : 'NOTE LOCK OFF';
+});
 
-        document.addEventListener('visibilitychange', () => {
-            const banner = ensureBanner();
-            if (document.hidden) {
-                banner.style.display = 'block';
-            } else {
-                banner.style.display = 'none';
-                // rAF resumes automatically; reset render timing to avoid a
-                // large phase jump caused by the tab being hidden for a while.
-                _lastRenderMs = 0;
-            }
-        });
-    })();
+btnSett.addEventListener('click', () => {
+    const open = settPanel.classList.toggle('open');
+    btnSett.classList.toggle('active', open);
+});
 
-    // ================================================================
-    // DEVELOPER DEBUG MODE
-    // ================================================================
-    // Enable with:  window.TUNER_DEBUG = true   (browser console)
-    // Dumps per-frame telemetry: frequency, cents, RMS, lock state, etc.
-    // Automatically logs a settings state-dump whenever A4 ref or stretch
-    // profile changes so regressions can be traced to a config change.
-    (function () {
-        const _origA4Listener = document.getElementById('a4-calibration');
-        if (_origA4Listener) {
-            _origA4Listener.addEventListener('change', () => {
-                if (window.TUNER_DEBUG) {
-                    console.log('[Tuner] Settings dump:', {
-                        a4:          state.a4Calibration,
-                        stretch:     state.stretchProfile,
-                        guitar:      state.guitarType,
-                        temperament: state.temperament,
-                        compensation: state.useCompensation,
-                        sensitivity: state.sensitivity,
-                        ctxSampleRate: state.audioContext
-                            ? state.audioContext.sampleRate + ' Hz' : 'n/a'
-                    });
-                }
-            });
-        }
-    })();
+refHzEl.addEventListener('change', () => {
+    const v = parseFloat(refHzEl.value);
+    if (v >= 380 && v <= 500) {
+        state.refA4 = v;
+        buildStringButtons();
+    }
+});
 
-    </script>
+gainSlider.addEventListener('input', () => {
+    state.gain = parseFloat(gainSlider.value);
+    gainValEl.textContent = '×' + state.gain;
+    if (state.gainNode) state.gainNode.gain.value = state.gain;
+});
+
+modeSelect.addEventListener('change', () => {
+    state.mode = modeSelect.value;
+    stringRow.style.display = state.mode === 'guitar' ? 'flex' : 'none';
+    if (state.mode !== 'guitar') state.activeString = null;
+    buildStringButtons();
+});
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+buildStringButtons();
+requestAnimationFrame(animate);
+</script>
 </body>
 </html>
